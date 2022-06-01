@@ -29,9 +29,6 @@ with open("README.md", "r") as f:
 <li><a href="#-the-walkthrough-task-and-unshuffle-task-classes"> </a></li>
 </ul>
 </li>
-</ul>
-</li>
-</ul>
 </div>
 
 ## Installation

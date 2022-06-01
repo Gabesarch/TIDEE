@@ -19,7 +19,7 @@ with open("README.md", "r") as f:
 -->
 <div class="toc">
 <ul>
-<li><a href="#-installation"> Installation</a></li>
+<li><a href="#-installation"> Installation </a></li>
 <li><a href="#-tidy-task"> Tidy Task </a><ul>
 <li><a href="#-detector"> Out-of-place Detector</a></li>
 <li><a href="#-visual-memex"> Visual Memex</a></li>
@@ -29,7 +29,7 @@ with open("README.md", "r") as f:
 </ul>
 </div>
 
-## Installation
+## Installation 
 
 ## Tidy Task
 

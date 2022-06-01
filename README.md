@@ -27,7 +27,7 @@ with open("README.md", "r") as f:
 </ul>
 </div>
 
-# Installation 
+## Installation 
 **(1)** For training and running all networks for the tidy task and room rearrangement, start by cloning the repository:
 ```bash
 git clone git@github.com:Gabesarch/TIDEE.git
@@ -69,7 +69,7 @@ python -m pip install detectron2 -f \
 cd ./SOLQ/models/ops &&  rm -rf build && sh make.sh && cd ../../..
 ```
 
-# Tidy Task
+## Tidy Task
 
 ## Out-of-place Detector
 
@@ -77,7 +77,7 @@ cd ./SOLQ/models/ops &&  rm -rf build && sh make.sh && cd ../../..
 
 ## Rearrangement Task
 
-# Citation
+## Citation
 If you like this paper, please cite us:
 ```
 ```

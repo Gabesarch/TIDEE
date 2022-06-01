@@ -1,8 +1,8 @@
-#<h1 align="left">
+#<h1 align="center">
     TIDEE: Novel Room Reorganization using Visuo-Semantic Common Sense Priors
 </h1>
 
-This repo contains code and data for TIDEE. 
+This repo contains code and data for running and training TIDEE. 
 
 ### Contents
 <!--
@@ -23,6 +23,7 @@ with open("README.md", "r") as f:
 <li><a href="#visual-search-network"> Visual Search Network</a></li>
 </ul>
 <li><a href="#rearrangement-task"> Rearrangement Task </a></li>
+<li><a href="#citation"> Citation </a></li>
 </ul>
 </div>
 

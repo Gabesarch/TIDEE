@@ -30,6 +30,26 @@ with open("README.md", "r") as f:
 </div>
 
 ## Installation 
+For training and running all networks for the tidy task and room rearrangement, start by cloning the repository:
+```bash
+git clone git@github.com:allenai/ai2thor-rearrangement.git
+```
+(optional) If you are using conda, create an environment: 
+```bash
+conda create -n TIDEE python=3.8
+```
+
+Install [torch](https://pytorch.org/get-started/locally/) with the CUDA version you have. For example, for CUDA 11.1, you might install via: 
+```bash
+pip install torch==1.8.1+cu111 torchvision==0.9.1+cu111 torchaudio==0.8.1 -f https://download.pytorch.org/whl/torch_stable.html
+```
+
+Next, install additional requirements: 
+```bash
+pip install -r requirements.txt
+```
+
+
 
 ## Tidy Task
 

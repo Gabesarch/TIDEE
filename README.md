@@ -22,8 +22,7 @@ with open("README.md", "r") as f:
 <li><a href="#-installation">Installation</a></li>
 <li><a href="#-tidy-task"> Tidy Task </a></li>
 <li><a href="#-rearrangement-task"> Rearrangement Task </a></li>
-<li><a href="#-tidy-task"> Tidy Task </a>
-<ul>
+<li><a href="#-tidy-task"> Tidy Task </a><ul>
 <li><a href="#-detector"> Out-of-place Detector</a></li>
 <li><a href="#-visual-memex"> Visual Memex</a></li>
 <li><a href="#-visual-search-network"> Visual Search Network</a></li>

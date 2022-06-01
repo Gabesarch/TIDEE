@@ -55,6 +55,7 @@ with open("README.md", "r") as f:
 </li>
 <li><a href="#-citation">📄 Citation</a></li>
 </ul> -->
+</ul>
 </div>
 
 ## Installation

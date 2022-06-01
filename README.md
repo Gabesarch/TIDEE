@@ -101,9 +101,13 @@ Alternatively, you can run using headless rendering by appending `--do_headless_
 
 ## Tidy Task
 
-## Out-of-place Detector
+### Out-of-place Detector
 
-## Visual Memex
+### Visual Memex
+
+### Visual Search Network
+
+### Pretrained networks
 
 ## Rearrangement Task
 

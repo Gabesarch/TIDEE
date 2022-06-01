@@ -30,25 +30,46 @@ with open("README.md", "r") as f:
 </div>
 
 ## Installation 
-For training and running all networks for the tidy task and room rearrangement, start by cloning the repository:
+(1) For training and running all networks for the tidy task and room rearrangement, start by cloning the repository:
 ```bash
-git clone git@github.com:allenai/ai2thor-rearrangement.git
+git clone git@github.com:Gabesarch/TIDEE.git
 ```
-(optional) If you are using conda, create an environment: 
+(1a) (optional) If you are using conda, create an environment: 
 ```bash
 conda create -n TIDEE python=3.8
 ```
 
-Install [torch](https://pytorch.org/get-started/locally/) with the CUDA version you have. For example, for CUDA 11.1, you might install via: 
+(2) Install [torch](https://pytorch.org/get-started/locally/) with the CUDA version you have. For example, for CUDA 11.1, you might install via: 
 ```bash
 pip install torch==1.8.1+cu111 torchvision==0.9.1+cu111 torchaudio==0.8.1 -f https://download.pytorch.org/whl/torch_stable.html
 ```
 
-Next, install additional requirements: 
+(3) Install additional requirements: 
 ```bash
 pip install -r requirements.txt
 ```
 
+(4) Install [PyG](https://pytorch-geometric.readthedocs.io/en/latest/notes/installation.html) with correct torch and CUDA version. 
+For example, for torch 1.8.1 & CUDA 11.1:
+```bash
+pip install torch-scatter     -f https://pytorch-geometric.com/whl/torch-1.8.1+cu111.html
+pip install torch-sparse==0.6.12      -f https://pytorch-geometric.com/whl/torch-1.8.1+cu111.html
+pip install torch-cluster     -f https://pytorch-geometric.com/whl/torch-1.8.1+cu111.html
+pip install torch-spline-conv -f https://pytorch-geometric.com/whl/torch-1.8.1+cu111.html
+pip install torch-geometric 
+```
+
+(5) Install [Detectron 2](https://detectron2.readthedocs.io/en/latest/tutorials/install.html) (needed for SOLQ detector) with correct torch and CUDA version. 
+E.g.
+```bash
+python -m pip install detectron2 -f \
+  https://dl.fbaipublicfiles.com/detectron2/wheels/cu111/torch1.8/index.html
+```
+
+(6) Build SOLQ deformable attention:
+```bash
+cd ./SOLQ/models/ops &&  rm -rf build && sh make.sh && cd ../../..
+```
 
 
 ## Tidy Task

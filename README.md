@@ -26,7 +26,6 @@ with open("README.md", "r") as f:
 <li><a href="#-detector"> Out-of-place Detector</a></li>
 <li><a href="#-visual-memex"> Visual Memex</a></li>
 <li><a href="#-visual-search-network"> Visual Search Network</a></li>
-<li><a href="#-the-walkthrough-task-and-unshuffle-task-classes"> </a></li>
 </ul>
 </ul>
 </div>

@@ -29,7 +29,6 @@ with open("README.md", "r") as f:
 <li><a href="#-visual-search-network"> Visual Search Network</a></li>
 <li><a href="#-the-walkthrough-task-and-unshuffle-task-classes"> </a></li>
 </ul>
-</ul>
 </div>
 
 ## Installation

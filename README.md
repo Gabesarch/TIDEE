@@ -64,7 +64,8 @@ conda create -n TIDEE python=3.8
 
 **(2)** Install [PyTorch](https://pytorch.org/get-started/locally/) with the CUDA version you have. For example, run the following for CUDA 11.1: 
 ```bash
-pip install torch==1.8.1+cu111 torchvision==0.9.1+cu111 torchaudio==0.8.1 -f https://download.pytorch.org/whl/torch_stable.html
+pip install torch==1.8.1+cu111 torchvision==0.9.1+cu111 torchaudio==0.8.1 -f \ 
+    https://download.pytorch.org/whl/torch_stable.html
 ```
 
 **(3)** Install additional requirements: 
@@ -86,7 +87,7 @@ pip install torch-geometric
 E.g. for PyTorch 1.8 & CUDA 11.1:
 ```bash
 python -m pip install detectron2 -f \
-  https://dl.fbaipublicfiles.com/detectron2/wheels/cu111/torch1.8/index.html
+    https://dl.fbaipublicfiles.com/detectron2/wheels/cu111/torch1.8/index.html
 ```
 
 **(6)** Build SOLQ deformable attention:

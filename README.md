@@ -2,10 +2,7 @@
     TIDEE: Novel Room Reorganization using Visuo-Semantic Common Sense Priors
 </h1>
 
-# TIDEE
-This repo contains code and data for TIDEE. If you like this paper, please cite us:
-```
-```
+This repo contains code and data for TIDEE. 
 
 ### Contents
 <!--
@@ -29,7 +26,7 @@ with open("README.md", "r") as f:
 </ul>
 </div>
 
-## Installation 
+# Installation 
 **(1)** For training and running all networks for the tidy task and room rearrangement, start by cloning the repository:
 ```bash
 git clone git@github.com:Gabesarch/TIDEE.git
@@ -71,11 +68,16 @@ python -m pip install detectron2 -f \
 cd ./SOLQ/models/ops &&  rm -rf build && sh make.sh && cd ../../..
 ```
 
-## Tidy Task
+# Tidy Task
 
 ## Out-of-place Detector
 
 ## Visual Memex
 
 ## Rearrangement Task
+
+# Citation
+If you like this paper, please cite us:
+```
+```
 

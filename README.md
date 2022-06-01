@@ -30,11 +30,11 @@ with open("README.md", "r") as f:
 </div>
 
 ## Installation 
-(1) For training and running all networks for the tidy task and room rearrangement, start by cloning the repository:
+**(1)** For training and running all networks for the tidy task and room rearrangement, start by cloning the repository:
 ```bash
 git clone git@github.com:Gabesarch/TIDEE.git
 ```
-(1a) (optional) If you are using conda, create an environment: 
+**(1a)** (optional) If you are using conda, create an environment: 
 ```bash
 conda create -n TIDEE python=3.8
 ```
@@ -59,7 +59,7 @@ pip install torch-spline-conv -f https://pytorch-geometric.com/whl/torch-1.8.1+c
 pip install torch-geometric 
 ```
 
-(5) Install [Detectron 2](https://detectron2.readthedocs.io/en/latest/tutorials/install.html) (needed for SOLQ detector) with correct PyTorch and CUDA version. 
+(5) Install [Detectron2](https://detectron2.readthedocs.io/en/latest/tutorials/install.html) (needed for SOLQ detector) with correct PyTorch and CUDA version. 
 E.g. for PyTorch 1.8 & CUDA 11.1:
 ```bash
 python -m pip install detectron2 -f \

@@ -39,17 +39,17 @@ git clone git@github.com:Gabesarch/TIDEE.git
 conda create -n TIDEE python=3.8
 ```
 
-(2) Install [PyTorch](https://pytorch.org/get-started/locally/) with the CUDA version you have. For example, run the following for CUDA 11.1: 
+**(2)** Install [PyTorch](https://pytorch.org/get-started/locally/) with the CUDA version you have. For example, run the following for CUDA 11.1: 
 ```bash
 pip install torch==1.8.1+cu111 torchvision==0.9.1+cu111 torchaudio==0.8.1 -f https://download.pytorch.org/whl/torch_stable.html
 ```
 
-(3) Install additional requirements: 
+**(3)** Install additional requirements: 
 ```bash
 pip install -r requirements.txt
 ```
 
-(4) Install [PyG](https://pytorch-geometric.readthedocs.io/en/latest/notes/installation.html) with correct PyTorch and CUDA version. 
+**(4)** Install [PyG](https://pytorch-geometric.readthedocs.io/en/latest/notes/installation.html) with correct PyTorch and CUDA version. 
 For example, run the following for PyTorch 1.8.1 & CUDA 11.1:
 ```bash
 pip install torch-scatter     -f https://pytorch-geometric.com/whl/torch-1.8.1+cu111.html
@@ -59,18 +59,17 @@ pip install torch-spline-conv -f https://pytorch-geometric.com/whl/torch-1.8.1+c
 pip install torch-geometric 
 ```
 
-(5) Install [Detectron2](https://detectron2.readthedocs.io/en/latest/tutorials/install.html) (needed for SOLQ detector) with correct PyTorch and CUDA version. 
+**(5)** Install [Detectron2](https://detectron2.readthedocs.io/en/latest/tutorials/install.html) (needed for SOLQ detector) with correct PyTorch and CUDA version. 
 E.g. for PyTorch 1.8 & CUDA 11.1:
 ```bash
 python -m pip install detectron2 -f \
   https://dl.fbaipublicfiles.com/detectron2/wheels/cu111/torch1.8/index.html
 ```
 
-(6) Build SOLQ deformable attention:
+**(6)** Build SOLQ deformable attention:
 ```bash
 cd ./SOLQ/models/ops &&  rm -rf build && sh make.sh && cd ../../..
 ```
-
 
 ## Tidy Task
 

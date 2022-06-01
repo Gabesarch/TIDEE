@@ -19,11 +19,11 @@ with open("README.md", "r") as f:
 -->
 <div class="toc">
 <ul>
-<li><a href="#-installation"> Installation </a></li>
-<li><a href="#-tidy-task"> Tidy Task </a><ul>
-<li><a href="#-detector"> Out-of-place Detector</a></li>
-<li><a href="#-visual-memex"> Visual Memex</a></li>
-<li><a href="#-visual-search-network"> Visual Search Network</a></li>
+<li><a href="#installation"> Installation </a></li>
+<li><a href="#tidy-task"> Tidy Task </a><ul>
+<li><a href="#detector"> Out-of-place Detector</a></li>
+<li><a href="#visual-memex"> Visual Memex</a></li>
+<li><a href="#visual-search-network"> Visual Search Network</a></li>
 </ul>
 <li><a href="#-rearrangement-task"> Rearrangement Task </a></li>
 </ul>

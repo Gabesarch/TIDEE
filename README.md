@@ -54,7 +54,7 @@ with open("README.md", "r") as f:
 <li><a href="#visual-search-network"> Visual Search Network</a></li>
 <li><a href="#pretrained-networks"> Pretrained Networks</a></li>
 </ul>
-<li><a href="#rearrangement-task"> Rearrangement Task </a></li>
+<li><a href="#room-rearrangement-task"> Room Rearrangement Task </a></li>
 <li><a href="#citation"> Citation </a></li>
 </ul>
 </div>

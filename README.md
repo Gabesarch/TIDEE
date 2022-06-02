@@ -147,8 +147,9 @@ python main.py --mode generate_mapping_obs --start_startx --do_predict_oop --map
 ```
 
 (3) Train the graph network (see `models/aithor_visualsearch.py` and `models/aithor_visualsearch_base.py` for details):
+```
 python main.py --mode visual_search_network --run_val --objects_per_scene 3 --scenes_per_batch 6 --n_val 8 --objects_per_scene_val 2 --mapping_obs_dir ./data/mapping_obs --do_add_semantic --log_freq 250 --val_freq 250 --set_name tidee_vsn
-
+```
 
 ### Pretrained networks
 

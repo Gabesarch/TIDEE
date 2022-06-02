@@ -47,8 +47,8 @@ with open("README.md", "r") as f:
 <li><a href="#dataset"> Dataset</a></li>
 </ul>
 <li><a href="#TIDEE"> TIDEE </a><ul>
-    
 <li><a href="#running-tidee-on-the-tidy-task"> Running TIDEE on the tidy task</a></li>
+<li><a href="#evaluation-&-videos"> Evaluation & Videos</a></li>
 <li><a href="#out-of-place-detector"> Out-of-place Detector</a></li>
 <li><a href="#visual-memex"> Visual Memex</a></li>
 <li><a href="#visual-search-network"> Visual Search Network</a></li>
@@ -138,10 +138,10 @@ And an .mp4 movie of each episode can be logged by adding (for example) the foll
 --create_movie --movie_dir tidy_task
 ```
 
-## TIDEE
-
 ### Out of Place Detector
-For our out of place detectors, we first train [SOLQ](https://github.com/megvii-research/SOLQ) with two prediction heads (one for category, one for out of place). See `models/aithor_solq.py` and `models/aithor_solq_base.py` for code details, and `arguments.py` for training argument details. 
+This section details how to train the Out of Place Detector.
+
+We first train [SOLQ](https://github.com/megvii-research/SOLQ) with two prediction heads (one for category, one for out of place). See `models/aithor_solq.py` and `models/aithor_solq_base.py` for code details, and `arguments.py` for training argument details. 
 
 ```
 python main.py --mode solq --S 5 --data_batch_size 5 --lr_drop 7 --run_val --load_val_agent --val_load_dir ./data/val_data/aithor_tidee_oop --plot_boxes --plot_masks --randomize_scene_lighting_and_material --start_startx --do_predict_oop --load_base_solq --mess_up_from_loaded --log_freq 250 --val_freq 250 --set_name TIDEE_solq_oop
@@ -155,6 +155,8 @@ python main.py --mode visual_bert_oop --do_visual_and_language_oop --S 3 --data_
 The above will generate training and validation data from the simulator. If you would like to use our training data from the paper, please contact us and we would be happy to share it. 
 
 ### Neural Associative Memory Graph Network
+This section details how to train the Neural Associative Memory Graph Network.
+
 To train the visual memex, the following steps are required: 
 
 (1) Make sure you have the SOLQ checkpoint (see <a href="#pretrained-networks"> Pretrained Networks</a>) in `./checkpoints/`. 
@@ -171,6 +173,8 @@ python main.py --mode visual_memex --run_val --load_val_agent --do_predict_oop -
 ```
 
 ### Visual Search Network
+This section details how to train the Visual Search Network.
+
 To train the Visual Search Network, the following steps are required: 
 
 (1) Make sure you have the SOLQ checkpoint (see <a href="#pretrained-networks"> Pretrained Networks</a>) in `./checkpoints/`. 

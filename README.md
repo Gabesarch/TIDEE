@@ -123,24 +123,32 @@ The above will generate training and validation data from the simulator. If you 
 ### Neural Associative Memory Graph Network
 To train the visual memex, the following steps are required: 
 
-(1) (skip if already done for visual search network) first generate some observations of the mapping phase to use for the scene graph features. These can be generated and saved using the following command:
+(1) Make sure you have the SOLQ checkpoint (see <a href="#pretrained-networks"> Pretrained Networks</a>) in `./checkpoints/`. 
+
+(2) (skip if already done for Visual Search Network) first generate some observations of the mapping phase to use for the scene graph features. These can be generated and saved by running the following command:
 ```
 python main.py --mode generate_mapping_obs --start_startx --do_predict_oop --mapping_obs_dir ./data/mapping_obs
 ```
 This will generate the mapping observations to `mapping_obs_dir` (Note: this data will be ~200GB). 
 
-(2) Make sure you have the SOLQ checkpoint (see <a href="#pretrained-networks"> Pretrained networks</a>) in `./checkpoints/`. 
+(3) Train the graph network (see `models/aithor_visrgcn.py` and `models/aithor_visrgcn_base.py` for details):
+```
+python main.py --mode visual_memex --run_val --load_val_agent --do_predict_oop --radius_max 3.0 --num_mem_houses 5 --num_train_houses 15 --load_visual_memex --do_load_oop_nodes_and_supervision --vmemex_supervision_dir /projects/katefgroup/project_cleanup/tidee_final/vmemex_supervision_dir --only_include_receptacle --objects_per_scene 15 --scenes_per_batch 10 --mapping_obs_dir ./data/mapping_obs --load_model --load_model_path ./checkpoints/vrgcn-00002000.pth --set_name tidee_vmemex07 
+```
 
-To train the graph network for receptacle prediction, run the following: 
-```
-python main.py --mode visual_memex --run_val --load_val_agent --do_predict_oop --radius_max 3.0 --num_mem_houses 5 --num_train_houses 15 --load_visual_memex --do_load_oop_nodes_and_supervision --vmemex_supervision_dir /projects/katefgroup/project_cleanup/tidee_final/vmemex_supervision_dir --only_include_receptacle --objects_per_scene 15 --scenes_per_batch 10 --mapping_obs_dir ./data/mapping_obs --load_model --load_model_path ./checkpoints/vrgcn-00002000.pth --set_name aithor_tidee_vmemex07 
-```
+### Visual Search Network
+To train the Visual Search Network, the following steps are required: 
+
+(1) Make sure you have the SOLQ checkpoint (see <a href="#pretrained-networks"> Pretrained Networks</a>) in `./checkpoints/`. 
+
+(2) (skip if already done for Neural Associative Memory Graph Network) first generate some observations of the mapping phase. These can be generated and saved by running the following command:
 ```
 python main.py --mode generate_mapping_obs --start_startx --do_predict_oop --mapping_obs_dir ./data/mapping_obs
 ```
 
-### Visual Search Network
-To train the visual search network, first generate some observations of the mapping phase (skip if already done for neural associative memory graph network). 
+(3) Train the graph network (see `models/aithor_visualsearch.py` and `models/aithor_visualsearch_base.py` for details):
+python main.py --mode visual_search_network --run_val --objects_per_scene 3 --scenes_per_batch 6 --n_val 8 --objects_per_scene_val 2 --mapping_obs_dir ./data/mapping_obs --do_add_semantic --log_freq 250 --val_freq 250 --set_name tidee_vsn
+
 
 ### Pretrained networks
 

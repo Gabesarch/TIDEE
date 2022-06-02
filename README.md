@@ -190,8 +190,36 @@ python main.py --mode visual_search_network --run_val --objects_per_scene 3 --sc
 ```
 
 ### Pretrained networks
+All pretrained model checkpoints can be downloaded here. For use with the tidy task or room rearrangement, place in the `checkpoints` folder. 
 
-## Rearrangement Task
+## Room Rearrangement Task
+
+### Running TIDEE on Room Rearrangement 
+All the code for the rearrangement challenge task is taken from [Visual Room Rearrangement](https://github.com/allenai/ai2thor-rearrangement) and is included in the current repo in `rearrangement` modified to include estimated depth, noisy pose, noisy depth, and TIDEE config.
+
+To run TIDEE on the 2021 rearrangement benchmark, run (for example) the following: 
+```
+python main.py --mode rearrangement --tag TIDEE_rearrengement_2021 --OT_dist_thresh 1.0 --thresh_num_dissimilar -1 --HORIZON_DT 30 --eval_split test --log_every 25 --dataset 2021
+```
+
+To run TIDEE on the 2021 rearrangement benchmark combined (train, val, test) set, run (for example) the following: 
+```
+python main.py --mode rearrangement --tag TIDEE_rearrengement_2021 --OT_dist_thresh 1.0 --thresh_num_dissimilar -1 --HORIZON_DT 30 --eval_split combined --log_every 25 --dataset 2021
+```
+
+To run TIDEE on the 2022 rearrangement benchmark combined (train, val, test) set, run (for example) the following: 
+```
+python main.py --mode rearrangement --tag TIDEE_rearrengement_2021 --OT_dist_thresh 1.0 --thresh_num_dissimilar -1 --HORIZON_DT 30 --eval_split combined --log_every 25 --dataset 2022
+```
+
+All metrics will be saved in the folder `metrics` every `log_every` episodes. 
+
+Variants: 
+(1) To run using estimated depth, append `--estimate_depth`.
+
+(2) To run using noisy pose, append `--noisy_pose`.
+
+(3) To run using noisy depth, append `--noisy_depth`.
 
 ## Citation
 If you like this paper, please cite us:

@@ -107,7 +107,7 @@ The Tidy Task involves detecting and moving out of place objects to plausible pl
 Our tidy task dataset contains `8000` training scenes, `200` validation scenes, and `100` testing scenes with five objects in each scene moved out of place. To run the tidy task with the dataset, download the scene metadata from [here]() and place the extracted folder inside the `data/` folder.  
 
 ### Out of Place Detector
-For our out of place detectors, we first train [SOLQ](https://github.com/megvii-research/SOLQ) with two prediction heads. To run this training, 
+For our out of place detectors, we first train [SOLQ](https://github.com/megvii-research/SOLQ) with two prediction heads (one for category, one for out of place). See `models/aithor_solq.py` and `models/aithor_solq_base.py` for code details. 
 
 ### Visual Memex
 

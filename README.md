@@ -118,17 +118,29 @@ To train the visual and language detector, you can run the following (see `model
 python main.py --mode visual_bert_oop --do_visual_and_language_oop --S 3 --data_batch_size 3 --run_val --load_val_agent --val_load_dir ./data/val_data/aithor_tidee_oop_VL --n_val 3 --load_train_agent --train_load_dir ./data/train_data/aithor_tidee_oop_VL --n_train 50 --randomize_scene_lighting_and_material --start_startx --do_predict_oop --mess_up_from_loaded  --save_freq 2500 --log_freq 250 --val_freq 250 --max_iters 25000 --keep_latest 5 --start_one --score_threshold_oop 0.0 --score_threshold_cat 0.0 --set_name TIDEE_oop_vis_lang
 ```
 
-The above will generate training and validation data from the simulator. If you would like to use our training data from the paper, Please contact us and we would be happy to share it. 
+The above will generate training and validation data from the simulator. If you would like to use our training data from the paper, please contact us and we would be happy to share it. 
 
-### Visual Memex
-To train the visual memex, first generate some observations of the mapping phase to use for the scene graph features. These can be generated and saved using to following:
+### Neural Associative Memory Graph Network
+To train the visual memex, the following steps are required: 
+
+(1) (skip if already done for visual search network) first generate some observations of the mapping phase to use for the scene graph features. These can be generated and saved using the following command:
 ```
 python main.py --mode generate_mapping_obs --start_startx --do_predict_oop --mapping_obs_dir ./data/mapping_obs
 ```
 This will generate the mapping observations to `mapping_obs_dir` (Note: this data will be ~200GB). 
 
-### Visual Search Network
+(2) Make sure you have the SOLQ checkpoint (see <a href="#pretrained-networks"> Pretrained networks</a>) in `./checkpoints/`. 
 
+To train the graph network for receptacle prediction, run the following: 
+```
+python main.py --mode visual_memex --run_val --load_val_agent --do_predict_oop --radius_max 3.0 --num_mem_houses 5 --num_train_houses 15 --load_visual_memex --do_load_oop_nodes_and_supervision --vmemex_supervision_dir /projects/katefgroup/project_cleanup/tidee_final/vmemex_supervision_dir --only_include_receptacle --objects_per_scene 15 --scenes_per_batch 10 --mapping_obs_dir ./data/mapping_obs --load_model --load_model_path ./checkpoints/vrgcn-00002000.pth --set_name aithor_tidee_vmemex07 
+```
+```
+python main.py --mode generate_mapping_obs --start_startx --do_predict_oop --mapping_obs_dir ./data/mapping_obs
+```
+
+### Visual Search Network
+To train the visual search network, first generate some observations of the mapping phase (skip if already done for neural associative memory graph network). 
 
 ### Pretrained networks
 

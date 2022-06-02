@@ -107,7 +107,18 @@ The Tidy Task involves detecting and moving out of place objects to plausible pl
 Our tidy task dataset contains `8000` training scenes, `200` validation scenes, and `100` testing scenes with five objects in each scene moved out of place. To run the tidy task with the dataset, download the scene metadata from [here]() and place the extracted folder inside the `data/` folder.  
 
 ### Out of Place Detector
-For our out of place detectors, we first train [SOLQ](https://github.com/megvii-research/SOLQ) with two prediction heads (one for category, one for out of place). See `models/aithor_solq.py` and `models/aithor_solq_base.py` for code details. 
+For our out of place detectors, we first train [SOLQ](https://github.com/megvii-research/SOLQ) with two prediction heads (one for category, one for out of place). See `models/aithor_solq.py` and `models/aithor_solq_base.py` for code details, and `arguments.py` for training argument details. 
+
+```
+python main.py --mode solq --S 5 --data_batch_size 5 --lr_drop 7 --run_val --load_val_agent --val_load_dir ./data/val_data/aithor_tidee_oop --plot_boxes --plot_masks --randomize_scene_lighting_and_material --start_startx --do_predict_oop --load_base_solq --mess_up_from_loaded --log_freq 250 --val_freq 250 --set_name TIDEE_solq_oop
+```
+
+To train the visual and language detector, you can run the following (see `models/aithor_bert_oop_visual.py` and `models/aithor_solq_base.py` for details): 
+```
+python main.py --mode visual_bert_oop --do_visual_and_language_oop --S 3 --data_batch_size 3 --run_val --load_val_agent --val_load_dir ./data/val_data/aithor_tidee_oop_VL --n_val 3 --load_train_agent --train_load_dir ./data/train_data/aithor_tidee_oop_VL --n_train 50 --randomize_scene_lighting_and_material --start_startx --do_predict_oop --mess_up_from_loaded  --save_freq 2500 --log_freq 250 --val_freq 250 --max_iters 25000 --keep_latest 5 --start_one --score_threshold_oop 0.0 --score_threshold_cat 0.0 --set_name TIDEE_oop_vis_lang
+```
+
+The above will generate training and validation data from the simulator. If you would like to use our training data from the paper, Please contact us and we would be happy to share it. 
 
 ### Visual Memex
 

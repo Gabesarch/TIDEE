@@ -96,9 +96,9 @@ cd ./SOLQ/models/ops &&  rm -rf build && sh make.sh && cd ../../..
 ```
 
 ### Remote Server Setup
-To run the Ai2THOR simulator on a headless machine, you must either stat an x server or use Ai2THOR's new headless mode. 
-To start an x server with any of the scripts, you can simply append `--startx` to the arguments. 
-Alternatively, you can run using headless rendering by appending `--do_headless_rendering` to the arguments. 
+To run the Ai2THOR simulator on a headless machine, you must either stat an X-server or use Ai2THOR's new headless mode. 
+To start an X-server with any of the scripts, you can simply append `--startx` to the arguments. 
+Alternatively, you can use [Ai2THOR's new headless rendering](https://ai2thor.allenai.org/ithor/documentation/#headless-setup) by appending `--do_headless_rendering` to the arguments. 
 
 ## Tidy Task
 

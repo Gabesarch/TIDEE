@@ -43,9 +43,12 @@ with open("README.md", "r") as f:
 <ul>
 <li><a href="#installation"> Installation </a></li>
 <li><a href="#tidy-task"> Tidy Task </a><ul>
+<li><a href="#running-the-task"> Running the task</a></li>
 <li><a href="#dataset"> Dataset</a></li>
 </ul>
 <li><a href="#TIDEE"> TIDEE </a><ul>
+    
+<li><a href="#running-tidee-on-the-tidy-task"> Running TIDEE on the tidy task</a></li>
 <li><a href="#out-of-place-detector"> Out-of-place Detector</a></li>
 <li><a href="#visual-memex"> Visual Memex</a></li>
 <li><a href="#visual-search-network"> Visual Search Network</a></li>

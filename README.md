@@ -48,7 +48,7 @@ with open("README.md", "r") as f:
 </ul>
 <li><a href="#TIDEE"> TIDEE </a><ul>
 <li><a href="#running-tidee-on-the-tidy-task"> Running TIDEE on the tidy task</a></li>
-<li><a href="#evaluation-&-videos"> Evaluation & Videos</a></li>
+<li><a href="#evaluation--videos"> Evaluation & Videos</a></li>
 <li><a href="#out-of-place-detector"> Out-of-place Detector</a></li>
 <li><a href="#visual-memex"> Visual Memex</a></li>
 <li><a href="#visual-search-network"> Visual Search Network</a></li>

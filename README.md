@@ -97,7 +97,7 @@ cd ./SOLQ/models/ops &&  rm -rf build && sh make.sh && cd ../../..
 
 ### Remote Server Setup
 To run the Ai2THOR simulator on a headless machine, you must either stat an X-server or use Ai2THOR's new headless mode. 
-To start an X-server with any of the scripts, you can simply append `--startx` to the arguments. 
+To start an X-server with any of the scripts, you can simply append `--startx` to the arguments. You can specify the X-server port use the `--server_port` argument.
 Alternatively, you can use [Ai2THOR's new headless rendering](https://ai2thor.allenai.org/ithor/documentation/#headless-setup) by appending `--do_headless_rendering` to the arguments. 
 
 ## Tidy Task
@@ -115,14 +115,20 @@ python main.py --mode solq --S 5 --data_batch_size 5 --lr_drop 7 --run_val --loa
 
 To train the visual and language detector, you can run the following (see `models/aithor_bert_oop_visual.py` and `models/aithor_solq_base.py` for details): 
 ```
-python main.py --mode visual_bert_oop --do_visual_and_language_oop --S 3 --data_batch_size 3 --run_val --load_val_agent \ --val_load_dir ./data/val_data/aithor_tidee_oop_VL --n_val 3 --load_train_agent --train_load_dir ./data/train_data/aithor_tidee_oop_VL --n_train 50 \ --randomize_scene_lighting_and_material --start_startx --do_predict_oop --mess_up_from_loaded  --save_freq 2500 --log_freq 250 --val_freq 250 --max_iters 25000 --keep_latest 5 --start_one --score_threshold_oop 0.0 --score_threshold_cat 0.0 --set_name TIDEE_oop_vis_lang
+python main.py --mode visual_bert_oop --do_visual_and_language_oop --S 3 --data_batch_size 3 --run_val --load_val_agent --val_load_dir ./data/val_data/aithor_tidee_oop_VL --n_val 3 --load_train_agent --train_load_dir ./data/train_data/aithor_tidee_oop_VL --n_train 50 --randomize_scene_lighting_and_material --start_startx --do_predict_oop --mess_up_from_loaded  --save_freq 2500 --log_freq 250 --val_freq 250 --max_iters 25000 --keep_latest 5 --start_one --score_threshold_oop 0.0 --score_threshold_cat 0.0 --set_name TIDEE_oop_vis_lang
 ```
 
 The above will generate training and validation data from the simulator. If you would like to use our training data from the paper, Please contact us and we would be happy to share it. 
 
 ### Visual Memex
+To train the visual memex, first generate some observations of the mapping phase to use for the scene graph features. These can be generated and saved using to following:
+```
+python main.py --mode generate_mapping_obs --start_startx --do_predict_oop --mapping_obs_dir ./data/mapping_obs
+```
+This will generate the mapping observations to `mapping_obs_dir` (Note: this data will be ~200GB). 
 
 ### Visual Search Network
+
 
 ### Pretrained networks
 

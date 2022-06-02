@@ -102,10 +102,37 @@ To start an X-server with any of the scripts, you can simply append `--startx` t
 Alternatively, you can use [Ai2THOR's new headless rendering](https://ai2thor.allenai.org/ithor/documentation/#headless-setup) by appending `--do_headless_rendering` to the arguments. 
 
 ## Tidy Task
-The Tidy Task involves detecting and moving out of place objects to plausible places within the scene without any instructions. You can see `task_base/messup.py` for our data generation code to move objects out of place. See `task_base/example.py` for an example script of running the task with random actions. 
+
+### Running the task
+The Tidy Task involves detecting and moving out of place objects to plausible places within the scene without any instructions. You can see `task_base/messup.py` for our data generation code to move objects out of place. See `task_base/example.py` for an example script of running the task with random actions. To run the task, the tidy task dataset must be downloaded (see <a href="#dataset"> Dataset</a>)
 
 ### Dataset
 Our tidy task dataset contains `8000` training scenes, `200` validation scenes, and `100` testing scenes with five objects in each scene moved out of place. To run the tidy task with the dataset, download the scene metadata from [here]() and place the extracted folder inside the `data/` folder.  
+
+## TIDEE
+
+### Running TIDEE on the tidy task
+To run the full TIDEE pipeline on the tidy task, do the following: 
+
+(1) Download all model checkpoints (see <a href="#pretrained-networks"> Pretrained Networks</a>) and add them to `./checkpoints/`. Then, download the tidy task dataset (see <a href="#dataset"> Dataset</a>) and add it to the `data/` folder. 
+
+(2) Run TIDEE using the following command: 
+```
+python main.py --mode TIDEE --do_predict_oop --eval_split test --do_visual_memex --do_vsn_search --do_visual_oop --do_add_semantic
+```
+
+### Evaluation & Videos
+Evaluation images can be logged by adding (for example) the following to the arguments:
+```
+--log_every 1 --save_object_images --image_dir tidy_task
+```
+
+And an .mp4 movie of each episode can be logged by adding (for example) the following to the arguments:
+```
+--create_movie --movie_dir tidy_task
+```
+
+## TIDEE
 
 ### Out of Place Detector
 For our out of place detectors, we first train [SOLQ](https://github.com/megvii-research/SOLQ) with two prediction heads (one for category, one for out of place). See `models/aithor_solq.py` and `models/aithor_solq_base.py` for code details, and `arguments.py` for training argument details. 

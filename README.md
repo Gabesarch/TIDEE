@@ -107,17 +107,17 @@ To run the Ai2THOR simulator on a headless machine, you must either stat an X-se
 To start an X-server with any of the scripts, you can simply append `--startx` to the arguments. You can specify the X-server port use the `--server_port` argument.
 Alternatively, you can use [Ai2THOR's new headless rendering](https://ai2thor.allenai.org/ithor/documentation/#headless-setup) by appending `--do_headless_rendering` to the arguments. 
 
-## Tidy Task
+# Tidy Task
 
-### Running the task
+## Running the task
 The Tidy Task involves detecting and moving out of place objects to plausible places within the scene without any instructions. You can see `task_base/messup.py` for our data generation code to move objects out of place. See `task_base/example.py` for an example script of running the task with random actions. To run the task, the tidy task dataset must be downloaded (see <a href="#dataset"> Dataset</a>)
 
-### Dataset
+## Dataset
 Our tidy task dataset contains `8000` training scenes, `200` validation scenes, and `100` testing scenes with five objects in each scene moved out of place. To run the tidy task with the dataset, download the scene metadata from [here]() and place the extracted folder inside the `data/` folder.  
 
-## TIDEE
+# TIDEE
 
-### Running TIDEE on the tidy task
+## Running TIDEE on the tidy task
 To run the full TIDEE pipeline on the tidy task, do the following: 
 
 (1) Download all model checkpoints (see <a href="#pretrained-networks"> Pretrained Networks</a>) and add them to `./checkpoints/`. Then, download the tidy task dataset (see <a href="#dataset"> Dataset</a>) and add it to the `data/` folder. 
@@ -190,7 +190,9 @@ python main.py --mode visual_search_network --run_val --objects_per_scene 3 --sc
 ```
 
 ### Pretrained networks
-All pretrained model checkpoints can be downloaded here. For use with the tidy task or room rearrangement, place in the `checkpoints` folder. 
+All pretrained model checkpoints can be downloaded here. 
+
+For use with the tidy task or room rearrangement, place in the `checkpoints` folder. 
 
 ## Room Rearrangement Task
 

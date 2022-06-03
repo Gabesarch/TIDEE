@@ -192,7 +192,7 @@ python main.py --mode visual_search_network --run_val --objects_per_scene 3 --sc
 ## Pretrained networks
 All pretrained model checkpoints can be downloaded here. 
 
-For use with the tidy task or room rearrangement, place in the `checkpoints` folder. 
+For use with the tidy task or room rearrangement, place all checkpoints directly in the `checkpoints` folder. 
 
 # Room Rearrangement Task
 

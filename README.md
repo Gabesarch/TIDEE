@@ -127,7 +127,7 @@ To run the full TIDEE pipeline on the tidy task, do the following:
 python main.py --mode TIDEE --do_predict_oop --eval_split test --do_visual_memex --do_vsn_search --do_visual_oop --do_add_semantic
 ```
 
-### Evaluation & Videos
+## Evaluation & Videos
 Evaluation images can be logged by adding (for example) the following to the arguments:
 ```
 --log_every 1 --save_object_images --image_dir tidy_task
@@ -138,7 +138,7 @@ And an .mp4 movie of each episode can be logged by adding (for example) the foll
 --create_movie --movie_dir tidy_task
 ```
 
-### Out of Place Detector
+## Out of Place Detector
 This section details how to train the Out of Place Detector.
 
 We first train [SOLQ](https://github.com/megvii-research/SOLQ) with two prediction heads (one for category, one for out of place). See `models/aithor_solq.py` and `models/aithor_solq_base.py` for code details, and `arguments.py` for training argument details. 
@@ -172,7 +172,7 @@ This will generate the mapping observations to `mapping_obs_dir` (Note: this dat
 python main.py --mode visual_memex --run_val --load_val_agent --do_predict_oop --radius_max 3.0 --num_mem_houses 5 --num_train_houses 15 --load_visual_memex --do_load_oop_nodes_and_supervision --vmemex_supervision_dir /projects/katefgroup/project_cleanup/tidee_final/vmemex_supervision_dir --only_include_receptacle --objects_per_scene 15 --scenes_per_batch 10 --mapping_obs_dir ./data/mapping_obs --load_model --load_model_path ./checkpoints/vrgcn-00002000.pth --set_name tidee_vmemex07 
 ```
 
-### Visual Search Network
+## Visual Search Network
 This section details how to train the Visual Search Network.
 
 To train the Visual Search Network, the following steps are required: 
@@ -189,14 +189,14 @@ python main.py --mode generate_mapping_obs --start_startx --do_predict_oop --map
 python main.py --mode visual_search_network --run_val --objects_per_scene 3 --scenes_per_batch 6 --n_val 8 --objects_per_scene_val 2 --mapping_obs_dir ./data/mapping_obs --do_add_semantic --log_freq 250 --val_freq 250 --set_name tidee_vsn
 ```
 
-### Pretrained networks
+## Pretrained networks
 All pretrained model checkpoints can be downloaded here. 
 
 For use with the tidy task or room rearrangement, place in the `checkpoints` folder. 
 
-## Room Rearrangement Task
+# Room Rearrangement Task
 
-### Running TIDEE on Room Rearrangement 
+## Running TIDEE on Room Rearrangement 
 All the code for the rearrangement challenge task is taken from [Visual Room Rearrangement](https://github.com/allenai/ai2thor-rearrangement) and is included in the current repo in `rearrangement` modified to include estimated depth, noisy pose, noisy depth, and TIDEE config.
 
 To run TIDEE on the 2021 rearrangement benchmark, run (for example) the following: 
@@ -223,7 +223,7 @@ Variants:
 
 (3) To run using noisy depth, append `--noisy_depth`.
 
-## Citation
+# Citation
 If you like this paper, please cite us:
 ```
 ```

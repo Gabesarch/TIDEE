@@ -154,7 +154,7 @@ python main.py --mode visual_bert_oop --do_visual_and_language_oop --S 3 --data_
 
 The above will generate training and validation data from the simulator. If you would like to use our training data from the paper, please contact us and we would be happy to share it. 
 
-### Neural Associative Memory Graph Network
+## Neural Associative Memory Graph Network
 This section details how to train the Neural Associative Memory Graph Network.
 
 To train the visual memex, the following steps are required: 

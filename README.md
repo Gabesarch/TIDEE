@@ -151,7 +151,7 @@ To train the visual and language detector, you can run the following (see `model
 ```
 python main.py --mode visual_bert_oop --do_visual_and_language_oop --S 3 --data_batch_size 3 --run_val --load_val_agent --val_load_dir ./data/val_data/aithor_tidee_oop_VL --n_val 3 --load_train_agent --train_load_dir ./data/train_data/aithor_tidee_oop_VL --n_train 50 --randomize_scene_lighting_and_material --start_startx --do_predict_oop --mess_up_from_loaded  --save_freq 2500 --log_freq 250 --val_freq 250 --max_iters 25000 --keep_latest 5 --start_one --score_threshold_oop 0.0 --score_threshold_cat 0.0 --set_name TIDEE_oop_vis_lang
 ```
-The above will generate training and validation data from the simulator the data does not already exist. 
+The above will generate training and validation data from the simulator if the data does not already exist. 
 
 ## Neural Associative Memory Graph Network
 This section details how to train the Neural Associative Memory Graph Network.

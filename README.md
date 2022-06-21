@@ -60,7 +60,8 @@ with open("README.md", "r") as f:
 </div>
 
 ## Installation 
-**(1)** For training and running all networks for the tidy task and room rearrangement, start by cloning the repository:
+**Note:** A reduced environment can be used if only running the task and not the TIDEE networks. 
+**(1)** For training and running all TIDEE networks for the tidy task and room rearrangement, start by cloning the repository:
 ```bash
 git clone git@github.com:Gabesarch/TIDEE.git
 ```

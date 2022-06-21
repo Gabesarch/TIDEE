@@ -27,7 +27,7 @@
     </a> -->
 </p>
 
-This repo contains code and data for running and training TIDEE. 
+This repo contains code and data for running TIDEE and the tidy task. 
 
 ### Contents
 <!--

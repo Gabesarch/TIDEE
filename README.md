@@ -122,7 +122,7 @@ To run the full TIDEE pipeline on the tidy task, do the following:
 
 (1) Download all model checkpoints (see <a href="#pretrained-networks"> Pretrained Networks</a>) and add them to `./checkpoints/`. Then, download the tidy task dataset (see <a href="#dataset"> Dataset</a>) and add it to the `data/` folder. 
 
-(2) Run TIDEE using the following command: 
+(2) Run TIDEE on the tidy task using the following command: 
 ```
 python main.py --mode TIDEE --do_predict_oop --eval_split test --do_visual_memex --do_vsn_search --do_visual_oop --do_add_semantic
 ```

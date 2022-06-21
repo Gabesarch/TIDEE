@@ -209,7 +209,7 @@ For use with the tidy task or room rearrangement, place all checkpoints directly
 # Room Rearrangement Task
 
 ## Running TIDEE on Room Rearrangement 
-All the code for the rearrangement challenge task is taken from [Visual Room Rearrangement](https://github.com/allenai/ai2thor-rearrangement) and is included in the current repo in `rearrangement` modified to include estimated depth, noisy pose, noisy depth, and TIDEE config.
+The evaluation code for the rearrangement challenge task is taken from [Visual Room Rearrangement](https://github.com/allenai/ai2thor-rearrangement) and is included in the current repo in `rearrangement` modified to include estimated depth, noisy pose, noisy depth, and TIDEE config.
 
 To run TIDEE on the 2022 rearrangement benchmark combined set (train, val, test), run (for example) the following: 
 ```

@@ -110,10 +110,10 @@ Alternatively, you can use [Ai2THOR's new headless rendering](https://ai2thor.al
 # Tidy Task
 
 ## Running the task
-The Tidy Task involves detecting and moving out of place objects to plausible places within the scene without any instructions. You can see `task_base/messup.py` for our data generation code to move objects out of place. See `task_base/example.py` for an example script of running the task with random actions. To run the task, the tidy task dataset must be downloaded (see <a href="#dataset"> Dataset</a>)
+The Tidy Task involves detecting and moving out of place objects to plausible places within the scene without any instructions. You can see `task_base/messup.py` for our data generation code to move objects out of place. See `task_base/example.py` for an example script of running the task with random actions. To run the tidy task, the tidy task dataset must be downloaded (see <a href="#dataset"> Dataset</a>)
 
 ## Dataset
-Our tidy task dataset contains `8000` training scenes, `200` validation scenes, and `100` testing scenes with five objects in each scene moved out of place. To run the tidy task with the dataset, download the scene metadata from [here]() and place the extracted folder inside the `data/` folder.  
+Our tidy task dataset contains `8000` training scenes, `200` validation scenes, and `100` testing scenes with five objects in each scene moved out of place. To run the tidy task with the generated scenes, download the scene metadata from [here](https://drive.google.com/file/d/1KFUxxL8KU4H8dxBpjhp1SGAf3qnTtEBM/view?usp=sharing) and place the extracted contents inside of the `data/` folder.  
 
 # TIDEE
 
@@ -151,8 +151,7 @@ To train the visual and language detector, you can run the following (see `model
 ```
 python main.py --mode visual_bert_oop --do_visual_and_language_oop --S 3 --data_batch_size 3 --run_val --load_val_agent --val_load_dir ./data/val_data/aithor_tidee_oop_VL --n_val 3 --load_train_agent --train_load_dir ./data/train_data/aithor_tidee_oop_VL --n_train 50 --randomize_scene_lighting_and_material --start_startx --do_predict_oop --mess_up_from_loaded  --save_freq 2500 --log_freq 250 --val_freq 250 --max_iters 25000 --keep_latest 5 --start_one --score_threshold_oop 0.0 --score_threshold_cat 0.0 --set_name TIDEE_oop_vis_lang
 ```
-
-The above will generate training and validation data from the simulator. If you would like to use our training data from the paper, please contact us and we would be happy to share it. 
+The above will generate training and validation data from the simulator the data does not already exist. 
 
 ## Neural Associative Memory Graph Network
 This section details how to train the Neural Associative Memory Graph Network.
@@ -166,6 +165,7 @@ To train the visual memex, the following steps are required:
 python main.py --mode generate_mapping_obs --start_startx --do_predict_oop --mapping_obs_dir ./data/mapping_obs
 ```
 This will generate the mapping observations to `mapping_obs_dir` (Note: this data will be ~200GB). 
+Or, alternatively, download the mapping observations from [here]() and place the extracted contents in `./data/`.
 
 (3) Train the graph network (see `models/aithor_visrgcn.py` and `models/aithor_visrgcn_base.py` for details):
 ```
@@ -183,6 +183,8 @@ To train the Visual Search Network, the following steps are required:
 ```
 python main.py --mode generate_mapping_obs --start_startx --do_predict_oop --mapping_obs_dir ./data/mapping_obs
 ```
+This will generate the mapping observations to `mapping_obs_dir` (Note: this data will be ~200GB).
+Or, alternatively, download the mapping observations from [here]() and place the extracted contents in `./data/`.
 
 (3) Train the graph network (see `models/aithor_visualsearch.py` and `models/aithor_visualsearch_base.py` for details):
 ```
@@ -190,7 +192,7 @@ python main.py --mode visual_search_network --run_val --objects_per_scene 3 --sc
 ```
 
 ## Pretrained networks
-All pretrained model checkpoints can be downloaded here. 
+All pretrained model checkpoints can be downloaded [here](https://drive.google.com/drive/folders/1KpTL6Kp5Hk_paFXTPMtfO4H6Ur8LTGph?usp=sharing). 
 
 For use with the tidy task or room rearrangement, place all checkpoints directly in the `checkpoints` folder. 
 
@@ -199,24 +201,19 @@ For use with the tidy task or room rearrangement, place all checkpoints directly
 ## Running TIDEE on Room Rearrangement 
 All the code for the rearrangement challenge task is taken from [Visual Room Rearrangement](https://github.com/allenai/ai2thor-rearrangement) and is included in the current repo in `rearrangement` modified to include estimated depth, noisy pose, noisy depth, and TIDEE config.
 
-To run TIDEE on the 2021 rearrangement benchmark, run (for example) the following: 
+To run TIDEE on the 2022 rearrangement benchmark combined set (train, val, test), run (for example) the following: 
 ```
-python main.py --mode rearrangement --tag TIDEE_rearrengement_2021 --OT_dist_thresh 1.0 --thresh_num_dissimilar -1 --HORIZON_DT 30 --eval_split test --log_every 25 --dataset 2021
-```
-
-To run TIDEE on the 2021 rearrangement benchmark combined (train, val, test) set, run (for example) the following: 
-```
-python main.py --mode rearrangement --tag TIDEE_rearrengement_2021 --OT_dist_thresh 1.0 --thresh_num_dissimilar -1 --HORIZON_DT 30 --eval_split combined --log_every 25 --dataset 2021
+python main.py --mode rearrangement --tag TIDEE_rearrengement_2022 --OT_dist_thresh 1.0 --thresh_num_dissimilar -1 --match_relations_walk --HORIZON_DT 30 --log_every 25 --dataset 2022 --eval_split combined
 ```
 
-To run TIDEE on the 2022 rearrangement benchmark combined (train, val, test) set, run (for example) the following: 
+To run TIDEE on the 2021 rearrangement benchmark combined set (train, val, test), run (for example) the following: 
 ```
-python main.py --mode rearrangement --tag TIDEE_rearrengement_2021 --OT_dist_thresh 1.0 --thresh_num_dissimilar -1 --HORIZON_DT 30 --eval_split combined --log_every 25 --dataset 2022
+python main.py --mode rearrangement --tag TIDEE_rearrengement_2021 --OT_dist_thresh 1.0 --thresh_num_dissimilar -1 --match_relations_walk --HORIZON_DT 30 --log_every 25 --dataset 2021 --eval_split combined
 ```
 
-All metrics will be saved in the folder `metrics` every `log_every` episodes. 
+All metrics will be saved in the folder `metrics` every `log_every` episodes (specified by arguments). 
 
-Variants: 
+Noisy measurements: 
 (1) To run using estimated depth, append `--estimate_depth`.
 
 (2) To run using noisy pose, append `--noisy_pose`.

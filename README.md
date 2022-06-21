@@ -60,7 +60,7 @@ with open("README.md", "r") as f:
 </div>
 
 ## Installation 
-**Note:** A reduced environment can be used if only running the task and not the TIDEE networks. 
+**Note:** A reduced environment can be used if only running the tidy task and not the TIDEE networks. 
 
 **(1)** For training and running all TIDEE networks for the tidy task and room rearrangement, start by cloning the repository:
 ```bash

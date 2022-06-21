@@ -101,7 +101,7 @@ python -m pip install detectron2 -f \
 
 **(6)** Build SOLQ deformable attention:
 ```bash
-cd ./SOLQ/models/ops &&  rm -rf build && sh make.sh && cd ../../..
+cd ./SOLQ/models/ops && sh make.sh && cd ../../..
 ```
 
 ### Remote Server Setup

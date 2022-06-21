@@ -191,7 +191,7 @@ Or, alternatively, download the mapping observations from [here]() and place the
 python main.py --mode visual_search_network --run_val --objects_per_scene 3 --scenes_per_batch 6 --n_val 8 --objects_per_scene_val 2 --mapping_obs_dir ./data/mapping_obs --do_add_semantic --log_freq 250 --val_freq 250 --set_name tidee_vsn
 ```
 
-### Object navigation evaluation
+### Object goal navigation evaluation
 To run the object goal navigation evaluation from the paper using the Visual Search Network, run: 
 ```
 python main.py --mode visual_search_network --eval_object_nav --object_navigation_policy_name vsn_search --load_model --load_model_path ./checkpoints/vsn-00013500.pth --tag tidee_object_nav_vsn --do_predict_oop --detector_threshold_object_nav 0.5 --visibilityDistance 1.0 --max_steps_object_goal_nav 200 --nms_threshold 0.5 

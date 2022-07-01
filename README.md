@@ -95,8 +95,7 @@ pip install torch-geometric
 **(5)** Install [Detectron2](https://detectron2.readthedocs.io/en/latest/tutorials/install.html) (needed for SOLQ detector) with correct PyTorch and CUDA version. 
 E.g. for PyTorch 1.8 & CUDA 11.1:
 ```bash
-python -m pip install detectron2 -f \
-    https://dl.fbaipublicfiles.com/detectron2/wheels/cu111/torch1.8/index.html
+python -m pip install detectron2 -f https://dl.fbaipublicfiles.com/detectron2/wheels/cu111/torch1.8/index.html
 ```
 
 **(6)** Build SOLQ deformable attention:

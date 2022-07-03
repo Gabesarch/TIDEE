@@ -1,0 +1,10 @@
+# ninja log v5
+1	4319	1652636499475381918	/home/gsarch/repo/TIDEE/SOLQ/models/ops/build/temp.linux-x86_64-3.8/home/gsarch/repo/TIDEE/SOLQ/models/ops/src/cpu/ms_deform_attn_cpu.o	6e82614c3411fd5b
+1	14873	1652636510025452820	/home/gsarch/repo/TIDEE/SOLQ/models/ops/build/temp.linux-x86_64-3.8/home/gsarch/repo/TIDEE/SOLQ/models/ops/src/cuda/ms_deform_attn_cuda.o	aa5ceb549fb76506
+2	23457	1652636518606510489	/home/gsarch/repo/TIDEE/SOLQ/models/ops/build/temp.linux-x86_64-3.8/home/gsarch/repo/TIDEE/SOLQ/models/ops/src/vision.o	3662dc6a606d5d06
+1078	5264	1653504199406183690	/home/gsarch/repo/TIDEE/SOLQ/models/ops/build/temp.linux-x86_64-3.8/home/gsarch/repo/TIDEE/SOLQ/models/ops/src/cpu/ms_deform_attn_cpu.o	415f3f78f72d0adf
+1078	13142	1653504207249236462	/home/gsarch/repo/TIDEE/SOLQ/models/ops/build/temp.linux-x86_64-3.8/home/gsarch/repo/TIDEE/SOLQ/models/ops/src/cuda/ms_deform_attn_cuda.o	c682ca1f63e09e55
+1079	19462	1653504213597279174	/home/gsarch/repo/TIDEE/SOLQ/models/ops/build/temp.linux-x86_64-3.8/home/gsarch/repo/TIDEE/SOLQ/models/ops/src/vision.o	bd4a95b565c45b4a
+357	5894	1654048822899606000	/home/gsarch/repo/TIDEE/SOLQ/models/ops/build/temp.linux-x86_64-3.8/home/gsarch/repo/TIDEE/SOLQ/models/ops/src/cpu/ms_deform_attn_cpu.o	cac76bcced19be3b
+358	14569	1654048831567664621	/home/gsarch/repo/TIDEE/SOLQ/models/ops/build/temp.linux-x86_64-3.8/home/gsarch/repo/TIDEE/SOLQ/models/ops/src/cuda/ms_deform_attn_cuda.o	66ac0653dddadbcb
+358	23150	1654048840170722803	/home/gsarch/repo/TIDEE/SOLQ/models/ops/build/temp.linux-x86_64-3.8/home/gsarch/repo/TIDEE/SOLQ/models/ops/src/vision.o	81bfc8763980179

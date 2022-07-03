@@ -1,0 +1,4 @@
+# ninja log v5
+3	10576	1645071978903846922	/home/gsarch/repo/project_cleanup/SOLQ/models/ops/build/temp.linux-x86_64-3.9/home/gsarch/repo/project_cleanup/SOLQ/models/ops/src/cpu/ms_deform_attn_cpu.o	36c456accf6fc104
+3	21823	1645071990159918222	/home/gsarch/repo/project_cleanup/SOLQ/models/ops/build/temp.linux-x86_64-3.9/home/gsarch/repo/project_cleanup/SOLQ/models/ops/src/cuda/ms_deform_attn_cuda.o	4d3b7f45d4f4158a
+3	37307	1645072005633016236	/home/gsarch/repo/project_cleanup/SOLQ/models/ops/build/temp.linux-x86_64-3.9/home/gsarch/repo/project_cleanup/SOLQ/models/ops/src/vision.o	766958252d7e2a64

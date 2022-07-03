@@ -223,6 +223,8 @@ python main.py --mode rearrangement --tag TIDEE_rearrengement_2021 --OT_dist_thr
 
 All metrics will be saved in the folder `metrics` every `log_every` episodes (specified by arguments). 
 
+To run with the open and close, append `--do_open.
+
 Noisy measurements: 
 (1) To run using estimated depth, append `--estimate_depth`.
 

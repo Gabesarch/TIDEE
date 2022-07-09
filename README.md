@@ -7,7 +7,7 @@
         <!-- ai2thor-rearrangement wasn't identifiable by GitHub (on the day this was added), so using the same one as ai2thor -->
 <!--         <img alt="License" src="https://img.shields.io/github/license/allenai/ai2thor.svg?color=blue">
     </a> -->
-    <a href="//www.gabesarch.me/" target="_blank">
+    <a href="https://tidy-agent.github.io/" target="_blank">
         <img alt="Website" src="https://img.shields.io/badge/website-TIDEE-orange">
     </a>
 <!--     <a href="//github.com/allenai/ai2thor-rearrangement/releases">
@@ -19,7 +19,7 @@
 <!--     <a href="//arxiv.org/abs/2103.16544" target="_blank">
         <img src="https://img.shields.io/badge/venue-CVPR 2021-blue">
     </a> -->
-    <a href="//www.gabesarch.me/" target="_blank">
+    <a href="https://tidy-agent.github.io/" target="_blank">
         <img src="https://img.shields.io/badge/video-YouTube-red">
     </a>
 <!--     <a href="https://join.slack.com/t/ask-prior/shared_invite/zt-oq4z9u4i-QR3kgpeeTAymEDkNpZmCcg" target="_blank">

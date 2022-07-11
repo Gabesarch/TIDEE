@@ -7,19 +7,19 @@
         <!-- ai2thor-rearrangement wasn't identifiable by GitHub (on the day this was added), so using the same one as ai2thor -->
 <!--         <img alt="License" src="https://img.shields.io/github/license/allenai/ai2thor.svg?color=blue">
     </a> -->
-    <a href="https://tidy-agent.github.io/" target="_blank">
+    <a href="https://tidee-agent.github.io/" target="_blank">
         <img alt="Website" src="https://img.shields.io/badge/website-TIDEE-orange">
     </a>
 <!--     <a href="//github.com/allenai/ai2thor-rearrangement/releases">
         <img alt="GitHub release" src="https://img.shields.io/github/release/allenai/ai2thor-rearrangement.svg">
     </a> -->
-    <a href="//arxiv.org/" target="_blank">
+    <a href="https://tidee-agent.github.io/" target="_blank">
         <img src="https://img.shields.io/badge/arXiv-2103.16544-<COLOR>">
     </a>
 <!--     <a href="//arxiv.org/abs/2103.16544" target="_blank">
         <img src="https://img.shields.io/badge/venue-CVPR 2021-blue">
     </a> -->
-    <a href="https://tidy-agent.github.io/" target="_blank">
+    <a href="https://tidee-agent.github.io/" target="_blank">
         <img src="https://img.shields.io/badge/video-YouTube-red">
     </a>
 <!--     <a href="https://join.slack.com/t/ask-prior/shared_invite/zt-oq4z9u4i-QR3kgpeeTAymEDkNpZmCcg" target="_blank">
@@ -122,7 +122,9 @@ To run the full TIDEE pipeline on the tidy task, do the following:
 
 (1) Download all model checkpoints (see <a href="#pretrained-networks"> Pretrained Networks</a>) and add them to `./checkpoints/`. Then, download the tidy task dataset (see <a href="#dataset"> Dataset</a>) and add it to the `data/` folder. 
 
-(2) Run TIDEE on the tidy task using the following command: 
+(2) Download the visual memex graph data from [here](https://drive.google.com/file/d/1W6jMJOCZVSFOslKqhZKWxsKtyX6Y05pb/view?usp=sharing), and place the pickle file in the `./data` folder.
+
+(3) Run TIDEE on the tidy task using the following command: 
 ```
 python main.py --mode TIDEE --do_predict_oop --eval_split test --do_visual_memex --do_vsn_search --do_visual_oop --do_add_semantic
 ```
@@ -165,7 +167,7 @@ To train the visual memex, the following steps are required:
 python main.py --mode generate_mapping_obs --start_startx --do_predict_oop --mapping_obs_dir ./data/mapping_obs
 ```
 This will generate the mapping observations to `mapping_obs_dir` (Note: this data will be ~200GB). 
-Or, alternatively, download the mapping observations from [here]() and place the extracted contents in `./data/`.
+Or, alternatively, download the mapping observations from [here](https://drive.google.com/file/d/1LW4zUDRkirtiDuQQzOgMgJrvvlsDvxIC/view?usp=sharing) and place the extracted contents in `./data/`.
 
 (3) Train the graph network (see `models/aithor_visrgcn.py` and `models/aithor_visrgcn_base.py` for details):
 ```
@@ -184,7 +186,7 @@ To train the Visual Search Network, the following steps are required:
 python main.py --mode generate_mapping_obs --start_startx --do_predict_oop --mapping_obs_dir ./data/mapping_obs
 ```
 This will generate the mapping observations to `mapping_obs_dir` (Note: this data will be ~200GB).
-Or, alternatively, download the mapping observations from [here]() and place the extracted contents in `./data/`.
+Or, alternatively, download the mapping observations from [here](https://drive.google.com/file/d/1LW4zUDRkirtiDuQQzOgMgJrvvlsDvxIC/view?usp=sharing) and place the extracted contents in `./data/`.
 
 (3) Train the graph network (see `models/aithor_visualsearch.py` and `models/aithor_visualsearch_base.py` for details):
 ```

@@ -122,13 +122,13 @@ class Ai2Thor(Ai2Thor_Base):
                 optimizer_load = None
             else:
                 optimizer_load = self.optimizer
-            if True: 
+            if False: 
                 checkpoint = torch.load(path)
                 model_dict = self.model.state_dict()
                 pretrained_dict = checkpoint['model_state_dict']
-                pretrained_dict = {k: v for k, v in pretrained_dict.items() if "classifier.0.weight" not in k}
+                # pretrained_dict = {k: v for k, v in pretrained_dict.items() if "classifier.0.weight" not in k}
                 model_dict.update(pretrained_dict) 
-                msg = self.model.load_state_dict(pretrained_dict, strict=False)
+                msg = self.model.load_state_dict(pretrained_dict, strict=True)
                 print(msg)
             else:
                 self.start_step = saverloader.load_from_path(path, self.model, optimizer_load, strict=(not args.load_strict_false), lr_scheduler=lr_scheduler_load)

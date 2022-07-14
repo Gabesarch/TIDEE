@@ -644,7 +644,7 @@ class Navigation():
         obs = self.task.get_observations()
         rgb = obs["rgb"]
         depth = obs["depth"]
-        depth = self.adjust_depth(depth)
+        depth = self.adjust_depth(depth.copy())
         return rgb, depth
 
     def update_navigation_obs(self, rgb, depth, action_successful):

@@ -174,7 +174,7 @@ To train the visual memex, the following steps are required:
 python main.py --mode generate_mapping_obs --start_startx --do_predict_oop --mapping_obs_dir ./data/mapping_obs
 ```
 This will generate the mapping observations to `mapping_obs_dir` (Note: this data will be ~200GB). 
-Or, alternatively, download the mapping observations from [here](https://drive.google.com/file/d/1LW4zUDRkirtiDuQQzOgMgJrvvlsDvxIC/view?usp=sharing) and place the extracted contents in `./data/`.
+Or, alternatively, download the mapping observations from [here](https://drive.google.com/file/d/1LW4zUDRkirtiDuQQzOgMgJrvvlsDvxIC/view?usp=sharing) and place the extracted contents in the `data` folder.
 
 (3) Train the graph network (see `models/aithor_visrgcn.py` and `models/aithor_visrgcn_base.py` for details):
 ```

@@ -167,7 +167,7 @@ This section details how to train the Neural Associative Memory Graph Network.
 
 To train the visual memex, the following steps are required: 
 
-(1) Make sure you have the SOLQ checkpoint (see <a href="#pretrained-networks"> Pretrained Networks</a>) in `checkpoints`. 
+(1) Make sure you have the SOLQ checkpoint (see <a href="#pretrained-networks"> Pretrained Networks</a>) in the `checkpoints` folder. 
 
 (2) (skip if already done for Visual Search Network) first generate some observations of the mapping phase to use for the scene graph features. These can be generated and saved by running the following command:
 ```
@@ -186,14 +186,14 @@ This section details how to train the Visual Search Network.
 
 To train the Visual Search Network, the following steps are required: 
 
-(1) Make sure you have the SOLQ checkpoint (see <a href="#pretrained-networks"> Pretrained Networks</a>) in `checkpoints`. 
+(1) Make sure you have the SOLQ checkpoint (see <a href="#pretrained-networks"> Pretrained Networks</a>) in the `checkpoints` folder. 
 
 (2) (skip if already done for Neural Associative Memory Graph Network) first generate some observations of the mapping phase. These can be generated and saved by running the following command:
 ```
 python main.py --mode generate_mapping_obs --start_startx --do_predict_oop --mapping_obs_dir ./data/mapping_obs
 ```
 This will generate the mapping observations to `mapping_obs_dir` (Note: this data will be ~200GB).
-Or, alternatively, download the mapping observations from [here](https://drive.google.com/file/d/1LW4zUDRkirtiDuQQzOgMgJrvvlsDvxIC/view?usp=sharing) and place the extracted contents in `./data/`.
+Or, alternatively, download the mapping observations from [here](https://drive.google.com/file/d/1LW4zUDRkirtiDuQQzOgMgJrvvlsDvxIC/view?usp=sharing) and place the extracted contents in the `data` folder.
 
 (3) Train the graph network (see `models/aithor_visualsearch.py` and `models/aithor_visualsearch_base.py` for details):
 ```

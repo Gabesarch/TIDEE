@@ -71,6 +71,13 @@ git clone git@github.com:Gabesarch/TIDEE.git
 conda create -n TIDEE python=3.8
 ```
 
+You also will want to set CUDA paths. For example (on our tested machine with CUDA 11.1): 
+```bash
+export CUDA_HOME="/opt/cuda/11.1.1"
+export LD_LIBRARY_PATH="${CUDA_HOME}/lib64:$LD_LIBRARY_PATH"
+```
+
+
 **(2)** Install [PyTorch](https://pytorch.org/get-started/locally/) with the CUDA version you have. For example, run the following for CUDA 11.1: 
 ```bash
 pip install torch==1.8.1+cu111 torchvision==0.9.1+cu111 torchaudio==0.8.1 -f https://download.pytorch.org/whl/torch_stable.html
@@ -104,7 +111,7 @@ cd ./SOLQ/models/ops && sh make.sh && cd ../../..
 
 ### Remote Server Setup
 To run the Ai2THOR simulator on a headless machine, you must either stat an X-server or use Ai2THOR's new headless mode. 
-To start an X-server with any of the scripts, you can simply append `--startx` to the arguments. You can specify the X-server port use the `--server_port` argument.
+To start an X-server with any of the scripts, you can simply append `--start_startx` to the arguments. You can specify the X-server port use the `--server_port` argument.
 Alternatively, you can use [Ai2THOR's new headless rendering](https://ai2thor.allenai.org/ithor/documentation/#headless-setup) by appending `--do_headless_rendering` to the arguments. 
 
 # Tidy Task
@@ -113,16 +120,16 @@ Alternatively, you can use [Ai2THOR's new headless rendering](https://ai2thor.al
 The Tidy Task involves detecting and moving out of place objects to plausible places within the scene without any instructions. You can see `task_base/messup.py` for our data generation code to move objects out of place. See `task_base/example.py` for an example script of running the task with random actions. To run the tidy task, the tidy task dataset must be downloaded (see <a href="#dataset"> Dataset</a>)
 
 ## Dataset
-Our tidy task dataset contains `8000` training scenes, `200` validation scenes, and `100` testing scenes with five objects in each scene moved out of place. To run the tidy task with the generated scenes, download the scene metadata from [here](https://drive.google.com/file/d/1KFUxxL8KU4H8dxBpjhp1SGAf3qnTtEBM/view?usp=sharing) and place the extracted contents inside of the `data/` folder.  
+Our tidy task dataset contains `8000` training scenes, `200` validation scenes, and `100` testing scenes with five objects in each scene moved out of place. To run the tidy task with the generated scenes, download the scene metadata from [here](https://drive.google.com/file/d/1KFUxxL8KU4H8dxBpjhp1SGAf3qnTtEBM/view?usp=sharing) and place the extracted contents inside of the `data` folder.  
 
 # TIDEE
 
 ## Running TIDEE on the tidy task
 To run the full TIDEE pipeline on the tidy task, do the following: 
 
-(1) Download all model checkpoints (see <a href="#pretrained-networks"> Pretrained Networks</a>) and add them to `./checkpoints/`. Then, download the tidy task dataset (see <a href="#dataset"> Dataset</a>) and add it to the `data/` folder. 
+(1) Download all model checkpoints (see <a href="#pretrained-networks"> Pretrained Networks</a>) and add them to `checkpoints`. Then, download the tidy task dataset (see <a href="#dataset"> Dataset</a>) and add it to the `data` folder. 
 
-(2) Download the visual memex graph data from [here](https://drive.google.com/file/d/1W6jMJOCZVSFOslKqhZKWxsKtyX6Y05pb/view?usp=sharing), and place the pickle file in the `./data` folder.
+(2) Download the visual memex graph data from [here](https://drive.google.com/file/d/1W6jMJOCZVSFOslKqhZKWxsKtyX6Y05pb/view?usp=sharing), and place the pickle file in the `data` folder.
 
 (3) Run TIDEE on the tidy task using the following command: 
 ```
@@ -160,7 +167,7 @@ This section details how to train the Neural Associative Memory Graph Network.
 
 To train the visual memex, the following steps are required: 
 
-(1) Make sure you have the SOLQ checkpoint (see <a href="#pretrained-networks"> Pretrained Networks</a>) in `./checkpoints/`. 
+(1) Make sure you have the SOLQ checkpoint (see <a href="#pretrained-networks"> Pretrained Networks</a>) in `checkpoints`. 
 
 (2) (skip if already done for Visual Search Network) first generate some observations of the mapping phase to use for the scene graph features. These can be generated and saved by running the following command:
 ```
@@ -179,7 +186,7 @@ This section details how to train the Visual Search Network.
 
 To train the Visual Search Network, the following steps are required: 
 
-(1) Make sure you have the SOLQ checkpoint (see <a href="#pretrained-networks"> Pretrained Networks</a>) in `./checkpoints/`. 
+(1) Make sure you have the SOLQ checkpoint (see <a href="#pretrained-networks"> Pretrained Networks</a>) in `checkpoints`. 
 
 (2) (skip if already done for Neural Associative Memory Graph Network) first generate some observations of the mapping phase. These can be generated and saved by running the following command:
 ```

@@ -60,7 +60,7 @@ with open("README.md", "r") as f:
 </div>
 
 ## Installation 
-**Note:** A reduced environment can be used if only running the tidy task and not the TIDEE networks. 
+**Note:** We have tested this on a remote cluster with CUDA versions 10.2 and 11.1. The dependencies are for running the full TIDEE system. A reduced environment can be used if only running the tidy task and not the TIDEE networks. 
 
 **(1)** For training and running all TIDEE networks for the tidy task and room rearrangement, start by cloning the repository:
 ```bash

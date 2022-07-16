@@ -19,7 +19,7 @@
 <!--     <a href="//arxiv.org/abs/2103.16544" target="_blank">
         <img src="https://img.shields.io/badge/venue-CVPR 2021-blue">
     </a> -->
-    <a href="https://tidee-agent.github.io/" target="_blank">
+    <a href="https://youtu.be/16bAQ-Niruo" target="_blank">
         <img src="https://img.shields.io/badge/video-YouTube-red">
     </a>
 <!--     <a href="https://join.slack.com/t/ask-prior/shared_invite/zt-oq4z9u4i-QR3kgpeeTAymEDkNpZmCcg" target="_blank">

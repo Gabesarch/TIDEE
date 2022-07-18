@@ -244,5 +244,10 @@ Noisy measurements:
 # Citation
 If you like this paper, please cite us:
 ```
+@inproceedings{sarch2022tidee,
+  title = "TIDEE: Tidying Up Novel Rooms using Visuo-Semantic Common Sense Priors",
+  author = "Gabriel Sarch and Zhaoyuan Fang and Adam W. Harley and Paul Schydlo and Michael Tarr and Saurabh Gupta and Katerina Fragkiadaki", 
+  booktitle = "ECCV",
+  year = "2022"}
 ```
 

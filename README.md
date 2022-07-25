@@ -1,5 +1,5 @@
 <h1 align="center">
-    TIDEE: Novel Room Reorganization using Visuo-Semantic Common Sense Priors
+    TIDEE: Tidying Up Novel Rooms using Visuo-Semantic Common Sense Priors
 </h1>
 
 <p align="left">

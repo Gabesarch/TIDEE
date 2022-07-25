@@ -13,7 +13,7 @@
 <!--     <a href="//github.com/allenai/ai2thor-rearrangement/releases">
         <img alt="GitHub release" src="https://img.shields.io/github/release/allenai/ai2thor-rearrangement.svg">
     </a> -->
-    <a href="https://tidee-agent.github.io/" target="_blank">
+    <a href="https://arxiv.org/abs/2207.10761" target="_blank">
         <img src="https://img.shields.io/badge/arXiv-2103.16544-<COLOR>">
     </a>
 <!--     <a href="//arxiv.org/abs/2103.16544" target="_blank">

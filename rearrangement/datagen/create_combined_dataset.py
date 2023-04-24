@@ -5,7 +5,7 @@ from collections import defaultdict
 import compress_pickle
 from allenact.utils.misc_utils import partition_sequence
 
-from rearrangement.rearrange.constants import STARTER_DATA_DIR
+from rearrange.constants import STARTER_DATA_DIR
 
 
 def combine(task_limit_for_train: int = 10000):

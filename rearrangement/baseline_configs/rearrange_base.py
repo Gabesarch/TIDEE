@@ -11,7 +11,7 @@ import torchvision.models
 from torch import nn, cuda, optim
 from torch.optim.lr_scheduler import LambdaLR
 
-import rearrangement.datagen.datagen_utils as datagen_utils
+import datagen.datagen_utils as datagen_utils
 from allenact.base_abstractions.experiment_config import (
     ExperimentConfig,
     MachineParams,
@@ -28,20 +28,15 @@ from allenact_plugins.ithor_plugin.ithor_sensors import (
     SemanticMapTHORSensor,
 )
 from allenact_plugins.ithor_plugin.ithor_util import get_open_x_displays
-from rearrangement.rearrange.baseline_models import (
+from rearrange.baseline_models import (
     RearrangeActorCriticSimpleConvRNN,
     ResNetRearrangeActorCriticRNN,
 )
-from rearrangement.rearrange.constants import (
+from rearrange.constants import (
     OBJECT_TYPES_WITH_PROPERTIES,
     THOR_COMMIT_ID,
 )
-from rearrangement.rearrange.environment import RearrangeMode
-
-# import hyperparams as hyp
-from arguments import args
-import ipdb
-st = ipdb.set_trace
+from rearrange.environment import RearrangeMode
 
 
 class RearrangeBaseExperimentConfig(ExperimentConfig):
@@ -54,17 +49,15 @@ class RearrangeBaseExperimentConfig(ExperimentConfig):
 
     # Environment parameters
     REARRANGE_ENV_KWARGS = dict(mode=RearrangeMode.SNAP,)
-    SCREEN_SIZE = args.W
-    assert(args.W==args.H)
+    SCREEN_SIZE = 224
     THOR_CONTROLLER_KWARGS = {
-        "rotateStepDegrees": args.DT,
-        "snapToGrid": False,
-        "quality": "Ultra",
-        "width": args.W,
-        "height": args.H,
+        "rotateStepDegrees": 90,
+        "snapToGrid": True,
+        "quality": "Very Low",
+        "width": SCREEN_SIZE,
+        "height": SCREEN_SIZE,
         "commit_id": THOR_COMMIT_ID,
         "fastActionEmit": True,
-        "x_display":str(args.server_port),
     }
     INCLUDE_OTHER_MOVE_ACTIONS = True
 
@@ -74,21 +67,11 @@ class RearrangeBaseExperimentConfig(ExperimentConfig):
     CNN_PREPROCESSOR_TYPE_AND_PRETRAINING: Optional[Tuple[str, str]] = None
 
     # Sensor info
-    # SENSORS: Optional[Sequence[Sensor]] = None
-    # EGOCENTRIC_RGB_UUID = "rgb"
-    # UNSHUFFLED_RGB_UUID = "unshuffled_rgb"
-    # EGOCENTRIC_RGB_RESNET_UUID = "rgb_resnet"
-    # UNSHUFFLED_RGB_RESNET_UUID = "unshuffled_rgb_resnet"
-
     SENSORS: Optional[Sequence[Sensor]] = None
     EGOCENTRIC_RGB_UUID = "rgb"
     UNSHUFFLED_RGB_UUID = "unshuffled_rgb"
     EGOCENTRIC_RGB_RESNET_UUID = "rgb_resnet"
     UNSHUFFLED_RGB_RESNET_UUID = "unshuffled_rgb_resnet"
-    EGOCENTRIC_DEPTH_UUID = "depth"
-    UNSHUFFLED_DEPTH_UUID = "unshuffled_depth"
-    EGOCENTRIC_DEPTH_RESNET_UUID = "depth_resnet"
-    UNSHUFFLED_DEPTH_RESNET_UUID = "unshuffled_depth_resnet"
 
     # Actions
     PICKUP_ACTIONS = list(
@@ -256,6 +239,7 @@ class RearrangeBaseExperimentConfig(ExperimentConfig):
         devices: Optional[List[int]] = None,
         seeds: Optional[List[int]] = None,
         deterministic_cudnn: bool = False,
+        force_x_display: Optional[str] = None,
     ):
         if allowed_scenes is not None:
             scenes = allowed_scenes
@@ -300,22 +284,24 @@ class RearrangeBaseExperimentConfig(ExperimentConfig):
         x_display: Optional[str] = None
         gpu_device: Optional[int] = None
         thor_platform: Optional[ai2thor.platform.BaseLinuxPlatform] = None
-        if platform.system() == "Linux":
-            try:
-                # x_displays = get_open_x_displays(throw_error_if_empty=True)
 
-                # if devices is not None and len(
-                #     [d for d in devices if d != torch.device("cpu")]
-                # ) > len(x_displays):
-                #     get_logger().warning(
-                #         f"More GPU devices found than X-displays (devices: `{x_displays}`, x_displays: `{x_displays}`)."
-                #         f" This is not necessarily a bad thing but may mean that you're not using GPU memory as"
-                #         f" efficiently as possible. Consider following the instructions here:"
-                #         f" https://allenact.org/installation/installation-framework/#installation-of-ithor-ithor-plugin"
-                #         f" describing how to start an X-display on every GPU."
-                #     )
-                # x_display = x_displays[process_ind % len(x_displays)]
-                x_display = 0
+        if force_x_display is not None:
+            x_display = force_x_display
+        elif platform.system() == "Linux":
+            try:
+                x_displays = get_open_x_displays(throw_error_if_empty=True)
+
+                if devices is not None and len(
+                    [d for d in devices if d != torch.device("cpu")]
+                ) > len(x_displays):
+                    get_logger().warning(
+                        f"More GPU devices found than X-displays (devices: `{x_displays}`, x_displays: `{x_displays}`)."
+                        f" This is not necessarily a bad thing but may mean that you're not using GPU memory as"
+                        f" efficiently as possible. Consider following the instructions here:"
+                        f" https://allenact.org/installation/installation-framework/#installation-of-ithor-ithor-plugin"
+                        f" describing how to start an X-display on every GPU."
+                    )
+                x_display = x_displays[process_ind % len(x_displays)]
             except IOError:
                 # Could not find an open `x_display`, use CloudRendering instead.
                 assert all(

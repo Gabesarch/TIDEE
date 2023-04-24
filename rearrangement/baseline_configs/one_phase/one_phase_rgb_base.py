@@ -1,3 +1,4 @@
+import warnings
 from abc import ABC
 from typing import Optional, Dict, Sequence
 
@@ -12,18 +13,23 @@ try:
 except ImportError:
     raise ImportError("Please update to allenact>=0.4.0.")
 
-from rearrangement.baseline_configs.rearrange_base import RearrangeBaseExperimentConfig
-from rearrangement.rearrange.sensors import (
+from baseline_configs.rearrange_base import RearrangeBaseExperimentConfig
+from rearrange.sensors import (
     RGBRearrangeSensor,
     UnshuffledRGBRearrangeSensor,
 )
-from rearrangement.rearrange.tasks import RearrangeTaskSampler
+from rearrange.tasks import RearrangeTaskSampler
 
 
 class OnePhaseRGBBaseExperimentConfig(RearrangeBaseExperimentConfig, ABC):
     @classmethod
     def sensors(cls) -> Sequence[Sensor]:
-        cnn_type, pretraining_type = cls.CNN_PREPROCESSOR_TYPE_AND_PRETRAINING
+
+        if cls.CNN_PREPROCESSOR_TYPE_AND_PRETRAINING is None:
+            warnings.warn("No CNN_PREPROCESSOR_TYPE_AND_PRETRAINING specified. Will use NO vision sensors.")
+            return []
+
+        _, pretraining_type = cls.CNN_PREPROCESSOR_TYPE_AND_PRETRAINING
         if pretraining_type.strip().lower() == "clip":
             from allenact_plugins.clip_plugin.clip_preprocessors import (
                 ClipResNetPreprocessor,

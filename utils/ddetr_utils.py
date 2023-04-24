@@ -6,6 +6,7 @@ from PIL import Image
 # import hyperparams as hyp
 from arguments import args
 # from util import box_ops
+import warnings
 
 import ipdb
 st = ipdb.set_trace
@@ -456,7 +457,7 @@ def nms(boxes, scores, overlap=0.5, top_k=200):
         idx = idx[:-1]  # remove kept element from view
         # load bboxes of next highest vals
         # with warnings.catch_warnings():
-        # warnings.filterwarnings("ignore", category=UserWarning)
+        warnings.filterwarnings("ignore", category=UserWarning)
         torch.index_select(x1, 0, idx, out=xx1)
         torch.index_select(y1, 0, idx, out=yy1)
         torch.index_select(x2, 0, idx, out=xx2)

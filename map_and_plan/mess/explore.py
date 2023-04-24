@@ -9,6 +9,7 @@ import scipy, skfmm
 from .mapper import Mapper
 from .depth_utils import get_camera_matrix
 from .fmm_planner import FMMPlanner
+from .shortest_path_planner import ShortestPathPlanner
 import skimage
 from skimage.measure import label  
 from textwrap import wrap
@@ -17,6 +18,7 @@ from matplotlib import pyplot as plt
 import math
 import cv2
 import torch
+import copy
 
 import ipdb
 st = ipdb.set_trace
@@ -96,6 +98,7 @@ actions_inv = {
           'MoveLeft':LEFTWARD,
           'MoveRight':RIGHTWARD,
           'MoveBack':BACKWARD,
+          'pass': DONE,
         }
 # params = { 
 #            # STOP: {'rotation': 0}, 
@@ -117,7 +120,19 @@ actions_inv = {
 #          }
 
 class Explore():
-    def __init__(self, obs, goal, bounds, z=[0.15, 2.0], keep_head_down=False, keep_head_straight=False, dist_thresh=0.5, search_pitch_explore=False):
+    def __init__(
+        self, 
+        obs, 
+        goal, 
+        bounds, z=[0.15, 2.0], 
+        keep_head_down=False, 
+        keep_head_straight=False, 
+        look_down_init=True,
+        dist_thresh=0.5, 
+        search_pitch_explore=False, 
+        block_map_positions_if_fail=False,
+        use_FMM_planner=False
+        ):
         # obs.STEP_SIZE - 0.25
         # obs.DT = 90
         # obs.HORIZON_DT = 30
@@ -151,20 +166,34 @@ class Explore():
           'pass': DONE,
         }
 
+        self.actions = actions
+
         self.DT = obs.DT
         self.STEP_SIZE = obs.STEP_SIZE
         self.HORIZON_DT = obs.HORIZON_DT
         self.head_tilt = obs.head_tilt_init 
         print(self.STEP_SIZE)
+        print(self.HORIZON_DT)
+        print(self.DT)
+        print(self.head_tilt)
 
         self.keep_head_down = keep_head_down
         self.keep_head_straight = keep_head_straight
-        self.num_down_explore = 1
-        self.num_down_nav = 1
-        self.init_down = 1
+        self.num_down_explore = 3
+        self.num_down_nav = 3
+        self.init_down = 3
+        self.max_steps_coverage = 1000
+        self.max_steps_pointnav = 100
+        self.max_steps_pointnav_cover = 20
         self.do_init_down = False
         self.init_on = True
         self.search_pitch_explore = False #search_pitch_explore
+        self.look_down_init = look_down_init
+
+        self.search_mode = False
+        self.search_mode_reduced = False
+
+        self.use_FMM_planner = use_FMM_planner
 
         self.do_visualize = False
         self.step_count = 0
@@ -179,27 +208,69 @@ class Explore():
         # self.selem = skimage.morphology.disk(4) #self.mapper.resolution / self.mapper.resolution)
         # map_size = 20 #12 # 25
         # resolution = 0.05
-        self.map_size = 13 # max scene bounds for Ai2thor is ~11.5 #12 # 25
-        self.resolution = 0.02
+        self.map_size = 12 #17 # max scene bounds for Ai2thor is ~11.5 #12 # 25
+        self.resolution = 0.05
         self.max_depth = 200. # 4. * 255/25.
         self.dist_thresh = dist_thresh # initial dist_thresh
-        self.add_obstacle_if_action_fail = True
-        # max_depth = 5. * 255/25.
-        if True:
-            # self.selem = skimage.morphology.disk(8) #self.mapper.resolution / self.mapper.resolution)
-            # self.mapper_dilation = 1
-            # # self.loc_on_map_selem = skimage.morphology.disk(13)
-            # self.loc_on_map_selem = skimage.morphology.disk(2)
-            self.selem = skimage.morphology.disk(int(8*(0.02/self.resolution))) #self.mapper.resolution / self.mapper.resolution)
-            self.mapper_dilation = 1
-            # self.loc_on_map_selem = skimage.morphology.disk(13)
-            loc_on_map_size = int(np.floor(self.STEP_SIZE/self.resolution/2))#+5
-            self.loc_on_map_selem = np.ones((loc_on_map_size*2+1, loc_on_map_size*2+1)).astype(bool)
-            # self.loc_on_map_selem = skimage.morphology.disk(int(6*(0.02/self.resolution)))
+        if self.use_FMM_planner:
+            self.add_obstacle_if_action_fail = True
         else:
-            self.selem = skimage.morphology.disk(5) #self.mapper.resolution / self.mapper.resolution)
-            self.mapper_dilation = 20
-            self.loc_on_map_selem = skimage.morphology.disk(2)
+            self.add_obstacle_if_action_fail = False
+        self.block_map_positions_if_fail = block_map_positions_if_fail
+        self.explored_threshold = int(self.map_size/self.resolution*self.map_size/self.resolution*0.01)
+        # max_depth = 5. * 255/25.
+        # if True:
+        # self.selem = skimage.morphology.disk(8) #self.mapper.resolution / self.mapper.resolution)
+        # self.mapper_dilation = 1
+        # # self.loc_on_map_selem = skimage.morphology.disk(13)
+        # self.loc_on_map_selem = skimage.morphology.disk(2)
+        # self.selem = skimage.morphology.disk(np.ceil(0.23/self.resolution)) #self.mapper.resolution / self.mapper.resolution)
+        
+        if self.keep_head_down: # estimated depth
+            self.selem = skimage.morphology.disk(2) #skimage.morphology.square(int(np.ceil(0.23*(1.5)/self.resolution))+1)
+            # self.max_depth_image = 4.0
+            # self.exploring_max_depth_image = 3.0
+            self.max_depth_image = None #4.0
+            self.exploring_max_depth_image = None #3.0
+            self.view_angles = [45]
+            loc_on_map_size = int(self.STEP_SIZE/self.resolution)   #int(0.2/self.resolution) #int(np.floor(self.STEP_SIZE/self.resolution/2))#+5
+            self.loc_on_map_selem = skimage.morphology.square(loc_on_map_size) #np.ones((loc_on_map_size+1, loc_on_map_size+1)).astype(bool)
+        else:
+            self.selem = skimage.morphology.square(int(np.ceil(0.23*1.5/self.resolution))+5-3) #self.mapper.resolution / self.mapper.resolution)
+            self.max_depth_image = None
+            self.view_angles = None
+            loc_on_map_size = int((self.STEP_SIZE/self.resolution)*1.5)   #int(0.2/self.resolution) #int(np.floor(self.STEP_SIZE/self.resolution/2))#+5
+            self.loc_on_map_selem = skimage.morphology.square(loc_on_map_size) #np.ones((loc_on_map_size+1, loc_on_map_size+1)).astype(bool)
+
+        # if self.keep_head_down:
+        #     self.view_angles = [45]
+        # else:
+        #     self.view_angles = None
+
+        # self.selem = skimage.morphology.square(int(np.ceil(0.23*2/self.resolution))+5) #self.mapper.resolution / self.mapper.resolution)
+        # self.max_depth_image = None
+        # # self.view_angles = None
+        # loc_on_map_size = int((self.STEP_SIZE/self.resolution)*1.5)   #int(0.2/self.resolution) #int(np.floor(self.STEP_SIZE/self.resolution/2))#+5
+        # self.loc_on_map_selem = skimage.morphology.square(loc_on_map_size) #np.ones((loc_on_map_size+1, loc_on_map_size+1)).astype(bool)
+        
+        # self.mapper_dilation = 1
+        # self.loc_on_map_selem = skimage.morphology.disk(13)
+        
+
+        # test = np.zeros((50,50))
+        # test[25,25] = 1
+        # test2 = skimage.morphology.binary_dilation(test, self.loc_on_map_selem)
+        # test2[25]
+    
+        # plt.figure()
+        # plt.imshow(test2)
+        # plt.savefig('data/images/test.png')
+        
+        # self.loc_on_map_selem = skimage.morphology.disk(int(6*(0.02/self.resolution)))
+        # else:
+        #     self.selem = skimage.morphology.disk(5) #self.mapper.resolution / self.mapper.resolution)
+        #     self.mapper_dilation = 20
+        #     self.loc_on_map_selem = skimage.morphology.disk(2)
         # skimage.morphology.square(2) #self.mapper.resolution / self.mapper.resolution)
         self.unexplored_area = np.inf
         self.next_target = 0
@@ -213,6 +284,7 @@ class Explore():
         self.rotation = 0.
         self.prev_act_id = None
         self.obstructed_actions = []
+        self.obstructed_states = []
         self.success = False
         self.point_goal = None
 
@@ -225,8 +297,8 @@ class Explore():
         fov = abs(2*math.atan(ar[0]/(2*focal))*180/np.pi)
         self.sc = 1. #255./25. #1 #57.13
         fov, h, w = fov, ar[1], ar[0]
-        
         C = get_camera_matrix(w, h, fov=fov)
+        
         self.bounds = bounds # aithor bounds
         self.mapper = Mapper(C, self.sc, self.position, self.map_size, self.resolution,
                                 max_depth=self.max_depth, z_bins=self.z_bins,
@@ -238,6 +310,11 @@ class Explore():
         self.invert_pitch = True # invert pitch when fetching roation matrix? 
         self.camX0_T_origin = self.get_camX0_T_camX(get_camX0_T_origin=True)
         self.camX0_T_origin = self.safe_inverse_single(self.camX0_T_origin)
+
+        self.steps_since_previous_failure = 0
+        self.failures_in_a_row = 0
+
+        self.repeat_previous = 0
 
         '''
         # setup trophy detector
@@ -274,12 +351,12 @@ class Explore():
     def _setup_execution(self, goal):
         self.execution = LifoQueue(maxsize=200)
         if self.goal.category == 'point_nav':
-            fn = lambda: self._point_goal_fn_assigned(np.array([self.goal.targets[0], self.goal.targets[1]]), explore_mode=False)
+            fn = lambda: self._point_goal_fn_assigned(np.array([self.goal.targets[0], self.goal.targets[1]]), explore_mode=False, iters=self.max_steps_pointnav)
             self.execution.put(fn)
         elif self.goal.category == 'cover':
             self.exploring = True
-            print("HERE")
-            fn = lambda: self._cover_fn(self.goal.targets[0], 20, 1, 1)
+            print("EXPLORING")
+            fn = lambda: self._cover_fn(self.goal.targets[0], self.max_steps_coverage, 1, 1)
             self.execution.put(fn)
         elif self.goal.category == 'retrieval':
             fn = lambda: self._retrieve_fn(self.goal.targets[0]) 
@@ -308,8 +385,8 @@ class Explore():
         fn = lambda: self._init_fn()
         self.execution.put(fn)
     
-    def _drop_fn(self):
-        yield actions[DROP]
+    # def _drop_fn(self):
+    #     yield actions[DROP]
 
     '''
     # Andy: not needed for this task
@@ -344,32 +421,37 @@ class Explore():
         yield actions[DOWN], {'horizon': -HORIZON_DT}
     '''
 
-    def _traverse_fn(self, uuid, semantic_size_threshold, morph_disk_size):
-        fn = lambda: self._object_goal_fn(uuid, 10, semantic_size_threshold, morph_disk_size)
-        self.execution.put(fn)
-        fn = lambda: self._explore_fn(uuid, 20, semantic_size_threshold, morph_disk_size)
-        self.execution.put(fn)
-        fn = lambda: self._object_goal_fn(uuid, 10, semantic_size_threshold, morph_disk_size)
-        self.execution.put(fn)
+    # def _traverse_fn(self, uuid, semantic_size_threshold, morph_disk_size):
+    #     fn = lambda: self._object_goal_fn(uuid, 10, semantic_size_threshold, morph_disk_size)
+    #     self.execution.put(fn)
+    #     fn = lambda: self._explore_fn(uuid, 20, semantic_size_threshold, morph_disk_size)
+    #     self.execution.put(fn)
+    #     fn = lambda: self._object_goal_fn(uuid, 10, semantic_size_threshold, morph_disk_size)
+    #     self.execution.put(fn)
         
 
-    def _retrieve_fn(self, uuid):
-        fn = lambda: self._pickup_fn(uuid)
-        self.execution.put(fn)
+    # def _retrieve_fn(self, uuid):
+    #     fn = lambda: self._pickup_fn(uuid)
+    #     self.execution.put(fn)
         
-        fn = lambda: self._traverse_fn(uuid, 0, 0)
-        self.execution.put(fn)
+    #     fn = lambda: self._traverse_fn(uuid, 0, 0)
+    #     self.execution.put(fn)
 
     def _init_fn(self):
 
         self.init_on = True
         self.exploring = False
 
-
         # # yield DOWN
         # # yield DOWN
-        for i in range(int(60/self.HORIZON_DT)):
-            yield DOWN
+        if self.look_down_init:
+            if self.keep_head_down:
+                deg_up = self.init_down*self.HORIZON_DT - self.head_tilt
+            else:
+                deg_up = 60 - self.head_tilt
+            # head_tilt = self.head_tilt
+            for i in range(int(deg_up/self.HORIZON_DT)):
+                yield DOWN
         # for i in range(int(360/self.DT)):
         #     yield LEFT
         # for i in range(int(60/self.HORIZON_DT)):
@@ -391,27 +473,44 @@ class Explore():
 
         # for i in range(self.num_down_explore):
         #     yield DOWN
+        
         for i in range(int(360/self.DT)):
             yield LEFT
-        
+
         # if not self.keep_head_down:
         #     for i in range(self.num_down_explore):
         #         yield UP
+        if self.look_down_init:
+            if self.keep_head_down:
+                deg_up = self.head_tilt - self.init_down*self.HORIZON_DT
+            for i in range(int(deg_up/self.HORIZON_DT)):
+                yield UP
+        
+        # if not self.keep_head_down and not self.keep_head_straight:
 
-        for i in range(int(60/self.HORIZON_DT)):
-            yield UP
+        #     for i in range(int(360/self.DT)):
+        #         yield LEFT
+
+        #     for i in range(int(30/self.HORIZON_DT)):
+        #         yield UP
+
+        #     for i in range(int(360/self.DT)):
+        #         yield LEFT
+
+        #     for i in range(int(30/self.HORIZON_DT)):
+        #         yield DOWN
 
         self.init_on = False
         self.exploring = True
     
-    def _get_target_object(self, obs, target_object, match_metric='id'):
-        # Returns the distance to the desired object.
-        r = None
-        for o in obs.object_list:
-            if match_metric == 'id':
-                if o.uuid == target_object['id']:
-                    r = o
-        return r
+    # def _get_target_object(self, obs, target_object, match_metric='id'):
+    #     # Returns the distance to the desired object.
+    #     r = None
+    #     for o in obs.object_list:
+    #         if match_metric == 'id':
+    #             if o.uuid == target_object['id']:
+    #                 r = o
+    #     return r
     
     def _get_action(self, ID):
         if type(ID) == int:
@@ -419,98 +518,98 @@ class Explore():
         else:
             return ID[0], ID[1]
 
-    def _update_coords_lvl1(self, masks, pred_classes, pred_scores):
-        self.box_opened_mask_s = []
-        self.box_closed_mask_s = []
-        self.trophy_mask = None
+    # def _update_coords_lvl1(self, masks, pred_classes, pred_scores):
+    #     self.box_opened_mask_s = []
+    #     self.box_closed_mask_s = []
+    #     self.trophy_mask = None
 
-        if masks.shape[0] == 0:
-            # no detections, return
-            return
+    #     if masks.shape[0] == 0:
+    #         # no detections, return
+    #         return
 
-        for idx, mask in enumerate(masks):
-            # keep only high confidence detections
-            if pred_scores[idx].item() < 0.9:
-                continue
+    #     for idx, mask in enumerate(masks):
+    #         # keep only high confidence detections
+    #         if pred_scores[idx].item() < 0.9:
+    #             continue
 
-            # to numpy
-            mask = mask.cpu().numpy()
+    #         # to numpy
+    #         mask = mask.cpu().numpy()
 
-            cur_class = pred_classes[idx].item()
-            if cur_class == 0:
-                self.trophy_mask = mask
-            elif cur_class == 2:
-                self.box_opened_mask_s.append(mask)
-            else:
-                self.box_closed_mask_s.append(mask)
+    #         cur_class = pred_classes[idx].item()
+    #         if cur_class == 0:
+    #             self.trophy_mask = mask
+    #         elif cur_class == 2:
+    #             self.box_opened_mask_s.append(mask)
+    #         else:
+    #             self.box_closed_mask_s.append(mask)
 
-    def _update_coords_lvl2(self, masks, pred_classes, pred_scores, semantic_map):
-        self.box_opened_mask_s = []
-        self.box_closed_mask_s = []
-        self.trophy_mask = None
+    # def _update_coords_lvl2(self, masks, pred_classes, pred_scores, semantic_map):
+    #     self.box_opened_mask_s = []
+    #     self.box_closed_mask_s = []
+    #     self.trophy_mask = None
 
-        if masks.shape[0] == 0:
-            # no detections, return
-            return
+    #     if masks.shape[0] == 0:
+    #         # no detections, return
+    #         return
 
-        for idx, mask in enumerate(masks):
-            # keep only high confidence detections:
-            if pred_scores[idx].item() < 0.9:
-                continue
+    #     for idx, mask in enumerate(masks):
+    #         # keep only high confidence detections:
+    #         if pred_scores[idx].item() < 0.9:
+    #             continue
 
-            # to numpy
-            mask = mask.cpu().numpy()
-            mask = mask.reshape(*semantic_map.shape[:2],1)
-            masked_sem = mask * semantic_map
+    #         # to numpy
+    #         mask = mask.cpu().numpy()
+    #         mask = mask.reshape(*semantic_map.shape[:2],1)
+    #         masked_sem = mask * semantic_map
 
-            unique_colors, counts = np.unique(masked_sem.reshape(-1, 3), return_counts = True, axis=0)
+    #         unique_colors, counts = np.unique(masked_sem.reshape(-1, 3), return_counts = True, axis=0)
 
-            max_counts = 0
-            max_color = None
-            for cid in range(len(counts)):
-                color = unique_colors[cid]
-                if color.sum() == 0:
-                    continue
-                if counts[cid] > max_counts:
-                    max_counts = counts[cid]
-                    max_color = color
+    #         max_counts = 0
+    #         max_color = None
+    #         for cid in range(len(counts)):
+    #             color = unique_colors[cid]
+    #             if color.sum() == 0:
+    #                 continue
+    #             if counts[cid] > max_counts:
+    #                 max_counts = counts[cid]
+    #                 max_color = color
 
-            # use the mask with max_counts
-            mask = (semantic_map == max_color.reshape(1,1,3)).sum(2) == 3
+    #         # use the mask with max_counts
+    #         mask = (semantic_map == max_color.reshape(1,1,3)).sum(2) == 3
 
-            cur_class = pred_classes[idx].item()
-            if cur_class == 0:
-                self.trophy_mask = mask
-            elif cur_class == 2:
-                self.box_opened_mask_s.append(mask)
-            else:
-                self.box_closed_mask_s.append(mask)
+    #         cur_class = pred_classes[idx].item()
+    #         if cur_class == 0:
+    #             self.trophy_mask = mask
+    #         elif cur_class == 2:
+    #             self.box_opened_mask_s.append(mask)
+    #         else:
+    #             self.box_closed_mask_s.append(mask)
                 
-    def _update_coords_gt(self, obs):
-        self.box_opened_mask_s = []
-        self.box_closed_mask_s = []
-        self.box_opened_uuid_s = []
-        self.box_closed_uuid_s = []
-        self.trophy_mask = None
+    # def _update_coords_gt(self, obs):
+    #     self.box_opened_mask_s = []
+    #     self.box_closed_mask_s = []
+    #     self.box_opened_uuid_s = []
+    #     self.box_closed_uuid_s = []
+    #     self.trophy_mask = None
     
-        semantic_map = np.array(obs.object_mask_list[0])
-        objects = obs.object_list
+    #     semantic_map = np.array(obs.object_mask_list[0])
+    #     objects = obs.object_list
         
-        for obj in objects:
-            color = np.array([obj.color['r'], obj.color['g'], obj.color['b']]).reshape(1,1,3)
-            mask = (semantic_map == color).sum(2) == 3
-            if mask.sum() == 0:
-                continue
+    #     for obj in objects:
+    #         color = np.array([obj.color['r'], obj.color['g'], obj.color['b']]).reshape(1,1,3)
+    #         mask = (semantic_map == color).sum(2) == 3
+    #         if mask.sum() == 0:
+    #             continue
             
-            if 'trophy' in obj.uuid:
-                self.trophy_mask = mask
-            elif 'box' in obj.uuid:
-                if obj.uuid in self.opened:
-                    self.box_opened_mask_s.append(mask)
-                    self.box_opened_uuid_s.append(obj.uuid)
-                else:
-                    self.box_closed_mask_s.append(mask)
-                    self.box_closed_uuid_s.append(obj.uuid)
+    #         if 'trophy' in obj.uuid:
+    #             self.trophy_mask = mask
+    #         elif 'box' in obj.uuid:
+    #             if obj.uuid in self.opened:
+    #                 self.box_opened_mask_s.append(mask)
+    #                 self.box_opened_uuid_s.append(obj.uuid)
+    #             else:
+    #                 self.box_closed_mask_s.append(mask)
+    #                 self.box_closed_uuid_s.append(obj.uuid)
 
     def set_point_goal(self, ind_i, ind_j, dist_thresh=0.5, explore_mode=False, search_mode=False, search_mode_reduced=False):
         self.exploring = False
@@ -522,17 +621,29 @@ class Explore():
         self.dist_thresh = dist_thresh
         self.obstructed_actions = []
         # fn = lambda: self._point_goal_fn(np.array([ind_j, ind_i]), dist_thresh=dist_thresh, explore_mode=explore_mode)
-        fn = lambda: self._point_goal_fn_assigned(np.array([ind_j, ind_i]), dist_thresh=dist_thresh, explore_mode=False, search_mode=search_mode, search_mode_reduced=search_mode_reduced)
+        self.search_mode = search_mode
+        self.search_mode_reduced = search_mode_reduced
+        fn = lambda: self._point_goal_fn_assigned(np.array([ind_j, ind_i]), dist_thresh=dist_thresh, explore_mode=False, search_mode=search_mode, search_mode_reduced=search_mode_reduced, iters=self.max_steps_pointnav)
         self.execution.put(fn)
 
     def add_observation(self, obs, action, add_obs=True):
         self.step_count += 1
         self.obs = obs
+        self.prev_act_id = DONE # set to DONE since when we call act() again, we do not want another action added there
 
         act_id = actions_inv[action]
 
+        # if len(self.obstructed_states)>=2 and len(set([tuple(a) for a in self.obstructed_states[-3:]]))==1 and act_id in [RIGHT,LEFT]:
+        #     st()
+        #     if act_id==actions_inv['RotateLeft']:
+        #         act_id = RIGHT
+        #     elif act_id==actions_inv['RotateRight']:
+        #         act_id = LEFT
+
     
         if obs.return_status == 'SUCCESSFUL': # and self.prev_act_id is not None:
+            self.steps_since_previous_failure += 1
+            self.failures_in_a_row = 0
             # self.obstructed_actions = []
             if 'Rotate' in actions[act_id]:
                 if 'Left' in actions[act_id]:
@@ -556,6 +667,8 @@ class Explore():
             elif 'Look' in actions[act_id]:
                 self.head_tilt += self.params[act_id]['degrees']
         elif obs.return_status == 'OBSTRUCTED' and act_id is not None:
+            self.steps_since_previous_failure = 0
+            self.failures_in_a_row += 1
             print("ACTION FAILED.")
             # if self.add_obstacle_if_action_fail:
             #     self.mapper.add_obstacle_in_front_of_agent()
@@ -569,17 +682,54 @@ class Explore():
             if prev_len>4000:
                 pass
             else:
-                # print(prev_len)
-                for idx in range(prev_len):
-                    obstructed_acts = self.obstructed_actions[idx]
-                    self.obstructed_actions.append(obstructed_acts+[act_id])
-                self.obstructed_actions.append([act_id])
+                if self.use_FMM_planner:
+                    # print(prev_len)
+                    for idx in range(prev_len):
+                        obstructed_acts = self.obstructed_actions[idx]
+                        self.obstructed_actions.append(obstructed_acts+[act_id])
+                    self.obstructed_actions.append([act_id])
+                else:
+                    if 'Move' in actions[act_id] or 'Rotate' in actions[act_id]:
+                        obstructed_state = copy.deepcopy(self.position)
+                        obstructed_rot = copy.deepcopy(self.rotation)
+                        if 'Left' in actions[act_id]:
+                            obstructed_rot %= 360
+                            obstructed_rot -= self.params[act_id]['degrees']
+                            act_id_ = FORWARD
+                        elif 'Right' in actions[act_id]:
+                            obstructed_rot += self.params[act_id]['degrees']
+                            obstructed_rot %= 360
+                            act_id_ = FORWARD
+                        else:
+                            act_id_ = act_id
+                        if act_id_ == FORWARD:
+                            obstructed_state['x'] += np.sin(obstructed_rot/180*np.pi)*self.params[act_id_]['moveMagnitude']
+                            obstructed_state['z'] += np.cos(obstructed_rot/180*np.pi)*self.params[act_id_]['moveMagnitude']
+                        elif act_id_ == BACKWARD:
+                            obstructed_state['x'] -= np.sin(obstructed_rot/180*np.pi)*self.params[act_id_]['moveMagnitude']
+                            obstructed_state['z'] -= np.cos(obstructed_rot/180*np.pi)*self.params[act_id_]['moveMagnitude']
+                        elif act_id_ == LEFTWARD:
+                            obstructed_state['x'] -= np.cos(obstructed_rot/180*np.pi)*self.params[act_id_]['moveMagnitude']
+                            obstructed_state['z'] += np.sin(obstructed_rot/180*np.pi)*self.params[act_id_]['moveMagnitude']
+                        elif act_id_ == RIGHTWARD:
+                            obstructed_state['x'] += np.cos(obstructed_rot/180*np.pi)*self.params[act_id_]['moveMagnitude']
+                            obstructed_state['z'] -= np.sin(obstructed_rot/180*np.pi)*self.params[act_id_]['moveMagnitude']
+                        obstructed_position = np.array([obstructed_state['x'], obstructed_state['z']], np.float32)
+                        obstructed_map_position = obstructed_position - self.mapper.origin_xz + self.mapper.origin_map*self.mapper.resolution
+                        obstructed_map_position = obstructed_map_position / self.mapper.resolution
+                        # obstructed_map_position = obstructed_map_position.astype(np.int32)
+                        self.obstructed_states.append(obstructed_map_position)
+                        if self.block_map_positions_if_fail:
+                            self.mapper.remove_position_on_map(obstructed_state)
+                        # self.obstructed_states
+                        # self.obstructed_actions.append()
         # head_tilt = obs.head_tilt
         return_status = obs.return_status
         # print("Step {0}, position {1} / {2}, rotation {3}".format(self.step_count, self.position, obs.position, self.rotation))
         rgb = np.array(obs.image_list[-1])
         depth = np.array(obs.depth_map_list[-1])
 
+        # print(self.head_tilt)
         self.mapper.add_observation(self.position, 
                                     self.rotation, 
                                     -self.head_tilt, 
@@ -596,9 +746,10 @@ class Explore():
                     self.point_goal = self.get_clostest_reachable_map_pos(self.point_goal)
                     ind_i, ind_j = self.point_goal
                     # fn = lambda: self._point_goal_fn(np.array([ind_j, ind_i]), dist_thresh=dist_thresh, explore_mode=explore_mode)
-                    fn = lambda: self._point_goal_fn_assigned(np.array([ind_j, ind_i]), dist_thresh=self.dist_thresh)
+                    fn = lambda: self._point_goal_fn_assigned(np.array([ind_j, ind_i]), dist_thresh=self.dist_thresh, iters=self.max_steps_pointnav, search_mode=self.search_mode, search_mode_reduced=self.search_mode_reduced)
                     self.execution.put(fn)
         # act_id = self.actions_inv[action]
+        # print("add_observation called")
         # self.prev_act_id = act_id
 
     def get_agent_position_camX0(self):
@@ -720,7 +871,7 @@ class Explore():
         return r
 
         
-    def act(self, obs, fig=None, point_goal=None, add_obs=True, object_masks=[], held_obj_depth=100.):
+    def act(self, obs, action=None, fig=None, point_goal=None, add_obs=True, object_masks=[], held_obj_depth=100.):
         # print("Exploring?", self.exploring)
         self.step_count += 1
         self.obs = obs
@@ -749,8 +900,11 @@ class Explore():
                                  max_depth=self.max_depth, z_bins=self.z_bins,
                                  loc_on_map_selem = self.loc_on_map_selem,
                                  bounds=self.bounds)
+                        
         else:
             if obs.return_status == 'SUCCESSFUL' and self.prev_act_id is not None:
+                self.steps_since_previous_failure += 1
+                self.failures_in_a_row = 0
                 # self.obstructed_actions = []
                 if 'Rotate' in actions[self.prev_act_id]:
                     if 'Left' in actions[self.prev_act_id]:
@@ -775,6 +929,8 @@ class Explore():
                     self.head_tilt += self.params[self.prev_act_id]['degrees']
 
             elif obs.return_status == 'OBSTRUCTED' and self.prev_act_id is not None:
+                self.steps_since_previous_failure = 0
+                self.failures_in_a_row += 1
                 # print("Ohhhhoooooonnooooooooooooooooonnononononooo")
                 print("ACTION FAILED.")
                 # if self.add_obstacle_if_action_fail:
@@ -789,17 +945,90 @@ class Explore():
                 if prev_len>4000:
                     pass
                 else:
-                    # print(prev_len)
-                    for idx in range(prev_len):
-                        obstructed_acts = self.obstructed_actions[idx]
-                        self.obstructed_actions.append(obstructed_acts+[self.prev_act_id])
-                    self.obstructed_actions.append([self.prev_act_id])
+                    if self.use_FMM_planner:
+                        # print(prev_len)
+                        for idx in range(prev_len):
+                            obstructed_acts = self.obstructed_actions[idx]
+                            self.obstructed_actions.append(obstructed_acts+[self.prev_act_id])
+                        self.obstructed_actions.append([self.prev_act_id])
+                    else:
+                        if 'Move' in actions[self.prev_act_id] or 'Rotate' in actions[self.prev_act_id]:
+                            obstructed_state = copy.deepcopy(self.position)
+                            obstructed_rot = copy.deepcopy(self.rotation)
+                            if 'Left' in actions[self.prev_act_id]:
+                                obstructed_rot %= 360
+                                obstructed_rot -= self.params[self.prev_act_id]['degrees']
+                                act_id_ = FORWARD
+                            elif 'Right' in actions[self.prev_act_id]:
+                                obstructed_rot += self.params[self.prev_act_id]['degrees']
+                                obstructed_rot %= 360
+                                act_id_ = FORWARD
+                            else:
+                                act_id_ = self.prev_act_id
+                            if act_id_ == FORWARD:
+                                obstructed_state['x'] += np.sin(obstructed_rot/180*np.pi)*self.params[act_id_]['moveMagnitude']
+                                obstructed_state['z'] += np.cos(obstructed_rot/180*np.pi)*self.params[act_id_]['moveMagnitude']
+                            elif act_id_ == BACKWARD:
+                                obstructed_state['x'] -= np.sin(obstructed_rot/180*np.pi)*self.params[act_id_]['moveMagnitude']
+                                obstructed_state['z'] -= np.cos(obstructed_rot/180*np.pi)*self.params[act_id_]['moveMagnitude']
+                            elif act_id_ == LEFTWARD:
+                                obstructed_state['x'] -= np.cos(obstructed_rot/180*np.pi)*self.params[act_id_]['moveMagnitude']
+                                obstructed_state['z'] += np.sin(obstructed_rot/180*np.pi)*self.params[act_id_]['moveMagnitude']
+                            elif act_id_ == RIGHTWARD:
+                                obstructed_state['x'] += np.cos(obstructed_rot/180*np.pi)*self.params[act_id_]['moveMagnitude']
+                                obstructed_state['z'] -= np.sin(obstructed_rot/180*np.pi)*self.params[act_id_]['moveMagnitude']
+                            obstructed_position = np.array([obstructed_state['x'], obstructed_state['z']], np.float32)
+                            obstructed_map_position = obstructed_position - self.mapper.origin_xz + self.mapper.origin_map*self.mapper.resolution
+                            obstructed_map_position = obstructed_map_position / self.mapper.resolution
+                            # obstructed_map_position = obstructed_map_position.astype(np.int32)
+                            self.obstructed_states.append(obstructed_map_position)
+                            # self.obstructed_states
+                            if self.block_map_positions_if_fail:
+                                self.mapper.remove_position_on_map(obstructed_state)
 
         # head_tilt = obs.head_tilt
         return_status = obs.return_status
         # print("Step {0}, position {1} / {2}, rotation {3}".format(self.step_count, self.position, obs.position, self.rotation))
         rgb = np.array(obs.image_list[-1])
         depth = np.array(obs.depth_map_list[-1])
+
+        if self.max_depth_image is not None:
+            if self.exploring:
+                depth[depth>self.exploring_max_depth_image] = np.nan
+            else:
+                depth[depth>self.max_depth_image] = np.nan
+
+        # depth_gt = np.array(obs.depth_map_list[1])/1000
+        # depth = depth_gt
+
+        # depth = depth + np.random.normal(loc=0.0, scale=0.05, size=depth.shape)
+
+        # depth = np.round(depth,1)
+
+        # plt.figure(1); plt.clf()
+        # plt.imshow(depth)
+        # plt.colorbar()
+        # plt.savefig('data/images/test2.png')
+        # plt.figure(1); plt.clf()
+        # plt.imshow(rgb)
+        # plt.colorbar()
+        # plt.savefig('data/images/test3.png')
+        # st()
+        # plt.figure(1); plt.clf()
+        # plt.imshow(depth_gt)
+        # plt.colorbar()
+        # plt.savefig('data/images/test2.png')
+        # plt.figure(1); plt.clf()
+        # m_vis = np.invert(self.mapper.get_traversible_map(
+        #                   self.selem, 1,loc_on_map_traversible=True))
+        # plt.imshow(m_vis, origin='lower', vmin=0, vmax=1,
+        #              cmap='Reds')
+        # plt.savefig('data/images/test1.png')
+
+        # print(np.unique(depth_gt))
+        # print(np.unique(depth))
+        
+        # st()
 
         # print("depth: ", depth.shape)
 
@@ -857,6 +1086,15 @@ class Explore():
         #                             self.rotation, 
         #                             -obs.head_tilt, 
         #                             depth)
+        # print(self.head_tilt)
+
+        if self.view_angles is not None:
+            add_obs = False
+            for vi, va in enumerate(self.view_angles):
+                if abs(va - self.head_tilt) <= 5:
+                    add_obs = True
+
+
         self.mapper.add_observation(self.position, 
                                     self.rotation, 
                                     -self.head_tilt, 
@@ -875,7 +1113,7 @@ class Explore():
                     self.point_goal = self.get_clostest_reachable_map_pos(self.point_goal)
                     ind_i, ind_j = self.point_goal
                     # fn = lambda: self._point_goal_fn(np.array([ind_j, ind_i]), dist_thresh=dist_thresh, explore_mode=explore_mode)
-                    fn = lambda: self._point_goal_fn_assigned(np.array([ind_j, ind_i]), dist_thresh=self.dist_thresh)
+                    fn = lambda: self._point_goal_fn_assigned(np.array([ind_j, ind_i]), dist_thresh=self.dist_thresh, iters=self.max_steps_pointnav, search_mode=self.search_mode, search_mode_reduced=self.search_mode_reduced)
                     self.execution.put(fn)
         
         # r = self._get_target_object(obs, obs.goal.metadata['target'])
@@ -895,24 +1133,40 @@ class Explore():
             eps = 5
             # print("Init on? ", self.init_on, "Exploring?", self.exploring)
             # print(obs.head_tilt)
-            if self.head_tilt < obs.HORIZON_DT*self.init_down - eps and self.keep_head_down and self.init_on and self.do_init_down:
-                act_id = DOWN # move head down if we want to keep it down
-            elif self.head_tilt < obs.HORIZON_DT*self.num_down_explore - eps and self.keep_head_down and self.exploring and (not self.init_on):
-                # print("Return move head down")
-                act_id = DOWN # move head down if we want to keep it down
-            elif self.head_tilt < obs.HORIZON_DT*self.num_down_nav - eps and self.keep_head_down and (not self.exploring) and (not self.init_on):
-                # print("Return move head down")
-                act_id = DOWN # move head down if we want to keep it down
-            elif self.head_tilt > obs.HORIZON_DT*self.num_down_explore + eps and self.keep_head_down and self.exploring and (not self.init_on):
-                act_id = UP # move head up if too down
-            elif self.head_tilt > obs.HORIZON_DT*self.num_down_nav + eps and self.keep_head_down and (not self.exploring) and (not self.init_on):
-                act_id = UP # move head up if too down
-            elif np.abs(self.head_tilt) > eps and self.keep_head_straight:
-                if self.head_tilt > eps:
-                    # print("Return move head down")
-                    act_id = UP # move head down if we want to keep it down
-                else:
-                    act_id = DOWN # move head down if we want to keep it down
+            if action is not None:
+                act_id = actions_inv[action]
+            # elif self.head_tilt < obs.HORIZON_DT*self.init_down - eps and self.keep_head_down and self.init_on and self.do_init_down:
+            #     act_id = DOWN # move head down if we want to keep it down
+            # elif self.head_tilt < obs.HORIZON_DT*self.num_down_explore - eps and self.keep_head_down and self.exploring and (not self.init_on):
+            #     # print("Return move head down")
+            #     act_id = DOWN # move head down if we want to keep it down
+            # elif self.head_tilt < obs.HORIZON_DT*self.num_down_nav - eps and self.keep_head_down and (not self.exploring) and (not self.init_on):
+            #     # print("Return move head down")
+            #     act_id = DOWN # move head down if we want to keep it down
+            # elif self.head_tilt > obs.HORIZON_DT*self.num_down_explore + eps and self.keep_head_down and self.exploring and (not self.init_on):
+            #     act_id = UP # move head up if too down
+            # elif self.head_tilt > obs.HORIZON_DT*self.num_down_nav + eps and self.keep_head_down and (not self.exploring) and (not self.init_on):
+            #     act_id = UP # move head up if too down
+            # elif np.abs(self.head_tilt) > eps and self.keep_head_straight:
+            #     if self.head_tilt > eps:
+            #         # print("Return move head down")
+            #         act_id = UP # move head down if we want to keep it down
+            #     else:
+            #         act_id = DOWN # move head down if we want to keep it down
+            elif self.repeat_previous>0:
+                act_id = self.prev_act_id
+                self.repeat_previous -= 1
+            elif obs.return_status == 'OBSTRUCTED' and len(self.obstructed_states)>=2 and len(set([tuple(a) for a in self.obstructed_states[-2:]]))==1 and self.prev_act_id in [RIGHT,LEFT]:
+                self.repeat_previous = 2 # turn the other way
+                if self.prev_act_id==actions_inv['RotateLeft']:
+                    act_id = RIGHT
+                elif self.prev_act_id==actions_inv['RotateRight']:
+                    act_id = LEFT
+                # set([tuple(a) for a in navigation.explorer.obstructed_states[-5:]])
+            # elif self.failures_in_a_row>3 and self.prev_act_id==actions_inv['RotateLeft']:
+            #     act_id = RIGHT
+            # elif self.failures_in_a_row>3 and self.prev_act_id==actions_inv['RotateRight']:
+            #     act_id = LEFT
             elif self.acts is None:
                 act_id = None
             else:
@@ -941,6 +1195,7 @@ class Explore():
                 self.prev_act_id = act_id
             else:
                 self.prev_act_id = None
+                st()
                 return act_id
 
         self.prev_act_id = act_id
@@ -1034,14 +1289,15 @@ class Explore():
         if iters == 0:
             logging.error(f'Coverage iteration limit reached.')
             self.exploring = False
+
             return
         else:
             print("Unexplored", np.sum(unexplored))
-            explored = np.sum(unexplored) < 20
+            explored = np.sum(unexplored) < self.explored_threshold
             # print('sum of unexplored:', np.sum(unexplored))
             if explored:
                 self.exploring = False
-                logging.error(f'Unexplored area < 20. Exploration finished')
+                logging.error(f'Unexplored area < {self.explored_threshold}. Exploration finished')
                 if do_video:
                     cv2.destroyAllWindows()
                     self.video_writer.release()
@@ -1051,68 +1307,69 @@ class Explore():
                 self.point_goal = [ind_i, ind_j]
                 
                 # logging.error(f'Exploration setting pointgoal: {ind_i}, {ind_j}')
+                print(f'Exploration setting pointgoal: {ind_i}, {ind_j}')
                 fn = lambda: self._cover_fn(uuid, iters-1, semantic_size_threshold, morph_disk_size)
                 self.execution.put(fn)
-                fn = lambda: self._point_goal_fn_assigned(np.array([ind_j, ind_i]), explore_mode=True)
+                fn = lambda: self._point_goal_fn_assigned(np.array([ind_j, ind_i]), explore_mode=True, iters=self.max_steps_pointnav_cover)
                 self.execution.put(fn)
             
     
-    def _explore_fn(self, uuid, iters, semantic_size_threshold, morph_disk_size):
-        if self.success:
-            return
-        unexplored = self._get_unexplored()
-        logging.error(f'Explore fn ({iters}), unexplored area: {np.sum(unexplored)}')
-        if iters == 0:
-            logging.error(f'Exploration iteration limit reached.')
-            return
-        else: 
-            spotted = self._check_object_goal_spotted(uuid, semantic_size_threshold, morph_disk_size)
-            if spotted:
-                # Object has been found, do nothing
-                logging.error(f'Object {uuid} spotted.')
-                return
-            else:
-                explored = np.sum(unexplored) < 20
-                if explored:
-                    if do_video:
-                        cv2.destroyAllWindows()
-                        self.video_writer.release()
-                        self.video_ind += 1
-                        st()
-                    logging.error(f'Unexplored area < 20. Exploration finished')
-                    return
-                else:
-                    ind_i, ind_j = self._sample_point_in_unexplored_reachable(unexplored)
-                    logging.error(f'Exploration setting pointgoal: {ind_i}, {ind_j}')
-                    fn = lambda: self._explore_fn(uuid, iters-1, semantic_size_threshold, morph_disk_size)
-                    self.execution.put(fn)
-                    fn = lambda: self._point_goal_fn_assigned(np.array([ind_j, ind_i]), explore_mode=True)
-                    self.execution.put(fn)
+    # def _explore_fn(self, uuid, iters, semantic_size_threshold, morph_disk_size):
+    #     if self.success:
+    #         return
+    #     unexplored = self._get_unexplored()
+    #     logging.error(f'Explore fn ({iters}), unexplored area: {np.sum(unexplored)}')
+    #     if iters == 0:
+    #         logging.error(f'Exploration iteration limit reached.')
+    #         return
+    #     else: 
+    #         spotted = self._check_object_goal_spotted(uuid, semantic_size_threshold, morph_disk_size)
+    #         if spotted:
+    #             # Object has been found, do nothing
+    #             logging.error(f'Object {uuid} spotted.')
+    #             return
+    #         else:
+    #             explored = np.sum(unexplored) < 20
+    #             if explored:
+    #                 if do_video:
+    #                     cv2.destroyAllWindows()
+    #                     self.video_writer.release()
+    #                     self.video_ind += 1
+    #                     st()
+    #                 logging.error(f'Unexplored area < {self.explored_threshold}. Exploration finished')
+    #                 return
+    #             else:
+    #                 ind_i, ind_j = self._sample_point_in_unexplored_reachable(unexplored)
+    #                 logging.error(f'Exploration setting pointgoal: {ind_i}, {ind_j}')
+    #                 fn = lambda: self._explore_fn(uuid, iters-1, semantic_size_threshold, morph_disk_size)
+    #                 self.execution.put(fn)
+    #                 fn = lambda: self._point_goal_fn_assigned(np.array([ind_j, ind_i]), explore_mode=True, iters=self.max_steps_pointnav)
+    #                 self.execution.put(fn)
 
-    def _check_object_goal_spotted(self, uuid, semantic_size_threshold, morph_disk_size):
-        disk = skimage.morphology.disk(morph_disk_size)
-        object_on_map = self.mapper.get_object_on_map(uuid)
-        object_on_map = skimage.morphology.binary_opening(object_on_map, disk)
-        return np.sum(object_on_map) > semantic_size_threshold
+    # def _check_object_goal_spotted(self, uuid, semantic_size_threshold, morph_disk_size):
+    #     disk = skimage.morphology.disk(morph_disk_size)
+    #     object_on_map = self.mapper.get_object_on_map(uuid)
+    #     object_on_map = skimage.morphology.binary_opening(object_on_map, disk)
+    #     return np.sum(object_on_map) > semantic_size_threshold
 
-    def _check_box_large_enough(self, uuid, morph_disk_size):
-        disk = skimage.morphology.disk(morph_disk_size)
-        object_on_map = self.mapper.get_object_on_map(uuid)
-        object_on_map = skimage.morphology.binary_opening(object_on_map, disk)
-        if object_on_map.sum() == 0:
-            return False
-        object_on_map = self._get_largest_cc(object_on_map)
+    # def _check_box_large_enough(self, uuid, morph_disk_size):
+    #     disk = skimage.morphology.disk(morph_disk_size)
+    #     object_on_map = self.mapper.get_object_on_map(uuid)
+    #     object_on_map = skimage.morphology.binary_opening(object_on_map, disk)
+    #     if object_on_map.sum() == 0:
+    #         return False
+    #     object_on_map = self._get_largest_cc(object_on_map)
 
-        y, x = np.where(object_on_map)
-        y_min, y_max = np.amin(y), np.amax(y)
-        x_min, x_max = np.amin(x), np.amax(x)
+    #     y, x = np.where(object_on_map)
+    #     y_min, y_max = np.amin(y), np.amax(y)
+    #     x_min, x_max = np.amin(x), np.amax(x)
 
-        y_len = y_max - y_min
-        x_len = x_max - x_min
+    #     y_len = y_max - y_min
+    #     x_len = x_max - x_min
 
-        outer_rect_area = y_len * x_len
+    #     outer_rect_area = y_len * x_len
 
-        return outer_rect_area >= 25 and y_len >= 5 or x_len >= 5
+    #     return outer_rect_area >= 25 and y_len >= 5 or x_len >= 5
 
     # def _object_goal_fn(self, uuid, iters=10, semantic_size_threshold=1, morph_disk_size=1):
     #     if self.success:
@@ -1205,95 +1462,95 @@ class Explore():
     #                 fn = lambda: self._point_goal_fn(point_goal_target, dist_thresh=0.8)
     #                 self.execution.put(fn)
 
-    def _reach_fn(self, uuid):
-        yield FORWARD
+    # def _reach_fn(self, uuid):
+    #     yield FORWARD
 
-    def _get_pickup_pixel(self, uuid):
-        view_mask = self.mapper.objects[uuid]['view_mask']
-        disk = skimage.morphology.disk(5)
-        view_mask = skimage.morphology.binary_erosion(view_mask, disk)
-        inds = np.where(view_mask == 1)
-        indices = np.stack(inds, axis=1).astype(int)
-        pixelX = None
-        pixelY = None
-        if np.prod(indices.shape) == 0:
-            return pixelX, pixelY
-        mean_loc = indices.mean(0).reshape(1,2)
-        ind = np.argmin(np.sum((indices-mean_loc)**2))
-        pixelY, pixelX = indices[ind].tolist()
-        return pixelY, pixelX
+    # def _get_pickup_pixel(self, uuid):
+    #     view_mask = self.mapper.objects[uuid]['view_mask']
+    #     disk = skimage.morphology.disk(5)
+    #     view_mask = skimage.morphology.binary_erosion(view_mask, disk)
+    #     inds = np.where(view_mask == 1)
+    #     indices = np.stack(inds, axis=1).astype(int)
+    #     pixelX = None
+    #     pixelY = None
+    #     if np.prod(indices.shape) == 0:
+    #         return pixelX, pixelY
+    #     mean_loc = indices.mean(0).reshape(1,2)
+    #     ind = np.argmin(np.sum((indices-mean_loc)**2))
+    #     pixelY, pixelX = indices[ind].tolist()
+    #     return pixelY, pixelX
 
-    def _pickup_fn(self, uuid):
-        logging.error("Start PICKUP")
-        if uuid not in self.mapper.objects:
-            return
-        yield actions[DOWN], {'horizon': self.HORIZON_DT}
-        yield actions[DOWN], {'horizon': self.HORIZON_DT}
-        n_lookdown = 2
-        for _ in range(10):
-            yield actions[LEFT], {'rotation': self.DT}
-            yield actions[LEFT], {'rotation': self.DT}
-            rot_count = 0
-            in_view = self.mapper.objects[uuid]['in_view'] == True and self.mapper.objects[uuid]['view_mask'] is not None
-            while not in_view:
-                yield actions[LEFT], {'rotation': self.DT}
-                in_view = self.mapper.objects[uuid]['in_view'] == True and self.mapper.objects[uuid]['view_mask'] is not None
-                rot_count += 1
-                if rot_count == 35:
-                    break
-            if not in_view:
-                yield actions[DOWN], {'horizon': self.HORIZON_DT}
-                yield actions[DOWN], {'horizon': self.HORIZON_DT}
-                n_lookdown += 2
-                continue
-            pickedup = False
-            for i in range(3):
-                pixelY, pixelX = self._get_pickup_pixel(uuid)
-                if pixelX is None:
-                    yield self._get_action(FORWARD)
-                    yield self._get_action(FORWARD)
-                    break
-                yield actions[PICKUP], {'objectImageCoordsX': pixelX, 'objectImageCoordsY': pixelY}
-                status = self.obs.return_status
-                # print(status)
-                if status == 'SUCCESSFUL':
-                    print("Picked up {}!!!".format(uuid))
-                    pickedup = True
-                    self.success = True
-                    break
-                elif status == 'OUT_OF_REACH':
-                    object_on_map = self.mapper.get_object_on_map(uuid)
-                    disk = skimage.morphology.disk(1)
-                    object_on_map = skimage.morphology.binary_opening(object_on_map, disk)
-                    if object_on_map.sum() == 0:
-                        continue
-                    object_on_map = self._get_largest_cc(object_on_map)
-                    yield self._get_action(FORWARD)
-                    y, x = np.where(object_on_map)
-                    obj_x = np.mean(x)
-                    obj_y = np.mean(y)
-                    agent_x, agent_y = self.mapper.get_position_on_map()
-                    agent_theta = np.rad2deg(self.mapper.get_rotation_on_map())
-                    angle = np.rad2deg(np.arctan2(obj_y-agent_y, obj_x-agent_x))
-                    delta_angle = (angle-90-agent_theta) % 360
-                    if delta_angle <= 180:
-                        for _ in range(int(delta_angle)//self.DT):
-                            yield 'RotateLeft', {'rotation': self.DT}
-                    else:
-                        for _ in range(int((360 - delta_angle)//self.DT)):
-                            yield 'RotateRight', {'rotation': self.DT}
-                    for _ in range(3):
-                        yield self._get_action(FORWARD)
-            if pickedup:
-                break
-        for i in range(n_lookdown):
-            yield actions[UP], {'horizon': self.HORIZON_DT}
-        return
+    # def _pickup_fn(self, uuid):
+    #     logging.error("Start PICKUP")
+    #     if uuid not in self.mapper.objects:
+    #         return
+    #     yield actions[DOWN], {'horizon': self.HORIZON_DT}
+    #     yield actions[DOWN], {'horizon': self.HORIZON_DT}
+    #     n_lookdown = 2
+    #     for _ in range(10):
+    #         yield actions[LEFT], {'rotation': self.DT}
+    #         yield actions[LEFT], {'rotation': self.DT}
+    #         rot_count = 0
+    #         in_view = self.mapper.objects[uuid]['in_view'] == True and self.mapper.objects[uuid]['view_mask'] is not None
+    #         while not in_view:
+    #             yield actions[LEFT], {'rotation': self.DT}
+    #             in_view = self.mapper.objects[uuid]['in_view'] == True and self.mapper.objects[uuid]['view_mask'] is not None
+    #             rot_count += 1
+    #             if rot_count == 35:
+    #                 break
+    #         if not in_view:
+    #             yield actions[DOWN], {'horizon': self.HORIZON_DT}
+    #             yield actions[DOWN], {'horizon': self.HORIZON_DT}
+    #             n_lookdown += 2
+    #             continue
+    #         pickedup = False
+    #         for i in range(3):
+    #             pixelY, pixelX = self._get_pickup_pixel(uuid)
+    #             if pixelX is None:
+    #                 yield self._get_action(FORWARD)
+    #                 yield self._get_action(FORWARD)
+    #                 break
+    #             yield actions[PICKUP], {'objectImageCoordsX': pixelX, 'objectImageCoordsY': pixelY}
+    #             status = self.obs.return_status
+    #             # print(status)
+    #             if status == 'SUCCESSFUL':
+    #                 print("Picked up {}!!!".format(uuid))
+    #                 pickedup = True
+    #                 self.success = True
+    #                 break
+    #             elif status == 'OUT_OF_REACH':
+    #                 object_on_map = self.mapper.get_object_on_map(uuid)
+    #                 disk = skimage.morphology.disk(1)
+    #                 object_on_map = skimage.morphology.binary_opening(object_on_map, disk)
+    #                 if object_on_map.sum() == 0:
+    #                     continue
+    #                 object_on_map = self._get_largest_cc(object_on_map)
+    #                 yield self._get_action(FORWARD)
+    #                 y, x = np.where(object_on_map)
+    #                 obj_x = np.mean(x)
+    #                 obj_y = np.mean(y)
+    #                 agent_x, agent_y = self.mapper.get_position_on_map()
+    #                 agent_theta = np.rad2deg(self.mapper.get_rotation_on_map())
+    #                 angle = np.rad2deg(np.arctan2(obj_y-agent_y, obj_x-agent_x))
+    #                 delta_angle = (angle-90-agent_theta) % 360
+    #                 if delta_angle <= 180:
+    #                     for _ in range(int(delta_angle)//self.DT):
+    #                         yield 'RotateLeft', {'rotation': self.DT}
+    #                 else:
+    #                     for _ in range(int((360 - delta_angle)//self.DT)):
+    #                         yield 'RotateRight', {'rotation': self.DT}
+    #                 for _ in range(3):
+    #                     yield self._get_action(FORWARD)
+    #         if pickedup:
+    #             break
+    #     for i in range(n_lookdown):
+    #         yield actions[UP], {'horizon': self.HORIZON_DT}
+    #     return
 
-    def _get_largest_cc(self, mask):
-        labels = label(mask)
-        largestCC = labels == np.argmax(np.array(np.bincount(labels.flat)[1:]))+1
-        return largestCC
+    # def _get_largest_cc(self, mask):
+    #     labels = label(mask)
+    #     largestCC = labels == np.argmax(np.array(np.bincount(labels.flat)[1:]))+1
+    #     return largestCC
 
     def _rotate_look_down_up(self, uuid):
         '''
@@ -1341,123 +1598,123 @@ class Explore():
         for _ in range(3):
             yield self._get_action(BACKWARD)
 
-    def _check_corner(self, uuid, corner_loc_cell):
-        if self._check_object_goal_spotted('trophy', 0, 0):
-            return
-        fn = lambda: self._rotate_look_down_up(uuid)
-        self.execution.put(fn)
-        fn = lambda: self._point_goal_fn(corner_loc_cell)
-        self.execution.put(fn)
+    # def _check_corner(self, uuid, corner_loc_cell):
+    #     if self._check_object_goal_spotted('trophy', 0, 0):
+    #         return
+    #     fn = lambda: self._rotate_look_down_up(uuid)
+    #     self.execution.put(fn)
+    #     fn = lambda: self._point_goal_fn(corner_loc_cell)
+    #     self.execution.put(fn)
 
-    def _check_inside(self, uuid):
-        logging.error('Start Check Inside')
-        max_forward = 5
-        forwards = 0
-        while self.obs.return_status == 'SUCCESSFUL' and forwards < max_forward:
-            forwards += 1
-            yield self._get_action(FORWARD)
-        # Look down and up
-        yield actions[DOWN], {'horizon': self.HORIZON_DT}
-        yield actions[DOWN], {'horizon': self.HORIZON_DT}
-        yield actions[DOWN], {'horizon': self.HORIZON_DT}
-        yield actions[DOWN], {'horizon': self.HORIZON_DT}
-        yield actions[DOWN], {'horizon': self.HORIZON_DT}
-        yield actions[DOWN], {'horizon': self.HORIZON_DT}
-        yield actions[UP], {'horizon': self.HORIZON_DT}
-        yield actions[UP], {'horizon': self.HORIZON_DT}
-        yield actions[UP], {'horizon': self.HORIZON_DT}
-        yield actions[UP], {'horizon': self.HORIZON_DT}
-        yield actions[UP], {'horizon': self.HORIZON_DT}
-        yield actions[UP], {'horizon': self.HORIZON_DT}
-        if self._check_object_goal_spotted('trophy', 0, 0):
-            return
+    # def _check_inside(self, uuid):
+    #     logging.error('Start Check Inside')
+    #     max_forward = 5
+    #     forwards = 0
+    #     while self.obs.return_status == 'SUCCESSFUL' and forwards < max_forward:
+    #         forwards += 1
+    #         yield self._get_action(FORWARD)
+    #     # Look down and up
+    #     yield actions[DOWN], {'horizon': self.HORIZON_DT}
+    #     yield actions[DOWN], {'horizon': self.HORIZON_DT}
+    #     yield actions[DOWN], {'horizon': self.HORIZON_DT}
+    #     yield actions[DOWN], {'horizon': self.HORIZON_DT}
+    #     yield actions[DOWN], {'horizon': self.HORIZON_DT}
+    #     yield actions[DOWN], {'horizon': self.HORIZON_DT}
+    #     yield actions[UP], {'horizon': self.HORIZON_DT}
+    #     yield actions[UP], {'horizon': self.HORIZON_DT}
+    #     yield actions[UP], {'horizon': self.HORIZON_DT}
+    #     yield actions[UP], {'horizon': self.HORIZON_DT}
+    #     yield actions[UP], {'horizon': self.HORIZON_DT}
+    #     yield actions[UP], {'horizon': self.HORIZON_DT}
+    #     if self._check_object_goal_spotted('trophy', 0, 0):
+    #         return
         
-        # Get four corners
-        object_on_map = self.mapper.get_object_on_map(uuid)
-        disk = skimage.morphology.disk(1)
-        object_on_map = skimage.morphology.binary_opening(object_on_map, disk)
-        if object_on_map.sum() == 0:
-            object_on_map = self.mapper.get_object_on_map(uuid)
-        object_on_map = self._get_largest_cc(object_on_map)
-        y, x = np.where(object_on_map)
-        y_min, y_max = np.amin(y), np.amax(y)
-        x_min, x_max = np.amin(x), np.amax(x)
+    #     # Get four corners
+    #     object_on_map = self.mapper.get_object_on_map(uuid)
+    #     disk = skimage.morphology.disk(1)
+    #     object_on_map = skimage.morphology.binary_opening(object_on_map, disk)
+    #     if object_on_map.sum() == 0:
+    #         object_on_map = self.mapper.get_object_on_map(uuid)
+    #     object_on_map = self._get_largest_cc(object_on_map)
+    #     y, x = np.where(object_on_map)
+    #     y_min, y_max = np.amin(y), np.amax(y)
+    #     x_min, x_max = np.amin(x), np.amax(x)
 
-        ymin_y, ymin_x = y[y == y_min].mean(), x[y == y_min].mean()
-        ymax_y, ymax_x = y[y == y_max].mean(), x[y == y_max].mean()
-        xmin_y, xmin_x = y[x == x_min].mean(), x[x == x_min].mean()
-        xmax_y, xmax_x = y[x == x_max].mean(), x[x == x_max].mean()
+    #     ymin_y, ymin_x = y[y == y_min].mean(), x[y == y_min].mean()
+    #     ymax_y, ymax_x = y[y == y_max].mean(), x[y == y_max].mean()
+    #     xmin_y, xmin_x = y[x == x_min].mean(), x[x == x_min].mean()
+    #     xmax_y, xmax_x = y[x == x_max].mean(), x[x == x_max].mean()
 
-        # Go to four corners and look at center, up and down
-        agent_x, agent_y = self.mapper.get_position_on_map()
-        for _ in range(3):
-            yield self._get_action(BACKWARD)
-        if self.mapper.resolution*np.sqrt((agent_x-ymin_x)**2+(agent_y-ymin_y)**2) > 0.4:
-            fn = lambda: self._check_corner(uuid, np.array([ymin_x, ymin_y-20]))
-            self.execution.put(fn)
-        if self.mapper.resolution*np.sqrt((agent_x-xmin_x)**2+(agent_y-xmin_y)**2) > 0.4:
-            fn = lambda: self._check_corner(uuid, np.array([xmin_x-20, xmin_y]))
-            self.execution.put(fn)
-        if self.mapper.resolution*np.sqrt((agent_x-ymax_x)**2+(agent_y-ymax_y)**2) > 0.4:
-            fn = lambda: self._check_corner(uuid, np.array([ymax_x, ymax_y+20]))
-            self.execution.put(fn)
-        if self.mapper.resolution*np.sqrt((agent_x-xmax_x)**2+(agent_y-xmax_y)**2) > 0.4:
-            fn = lambda: self._check_corner(uuid, np.array([xmax_x+20, xmax_y]))
-            self.execution.put(fn)
+    #     # Go to four corners and look at center, up and down
+    #     agent_x, agent_y = self.mapper.get_position_on_map()
+    #     for _ in range(3):
+    #         yield self._get_action(BACKWARD)
+    #     if self.mapper.resolution*np.sqrt((agent_x-ymin_x)**2+(agent_y-ymin_y)**2) > 0.4:
+    #         fn = lambda: self._check_corner(uuid, np.array([ymin_x, ymin_y-20]))
+    #         self.execution.put(fn)
+    #     if self.mapper.resolution*np.sqrt((agent_x-xmin_x)**2+(agent_y-xmin_y)**2) > 0.4:
+    #         fn = lambda: self._check_corner(uuid, np.array([xmin_x-20, xmin_y]))
+    #         self.execution.put(fn)
+    #     if self.mapper.resolution*np.sqrt((agent_x-ymax_x)**2+(agent_y-ymax_y)**2) > 0.4:
+    #         fn = lambda: self._check_corner(uuid, np.array([ymax_x, ymax_y+20]))
+    #         self.execution.put(fn)
+    #     if self.mapper.resolution*np.sqrt((agent_x-xmax_x)**2+(agent_y-xmax_y)**2) > 0.4:
+    #         fn = lambda: self._check_corner(uuid, np.array([xmax_x+20, xmax_y]))
+    #         self.execution.put(fn)
 
-        return
+    #     return
 
-    def _open_fn(self, uuid):
-        # New version of open function with pixel location
-        logging.error('Start Opening')
-        n_lookdown = 0
-        for _ in range(10):
-            rot_count = 0
-            in_view = self.mapper.objects[uuid]['in_view'] == True and self.mapper.objects[uuid]['view_mask'] is not None
-            while not in_view:
-                yield actions[LEFT], {'rotation': self.DT}
-                in_view = self.mapper.objects[uuid]['in_view'] == True and self.mapper.objects[uuid]['view_mask'] is not None
-                rot_count += 1
-                if rot_count == 35:
-                    break
-            if not in_view:
-                yield actions[DOWN], {'horizon': self.HORIZON_DT}
-                n_lookdown += 1
-                continue
-            pixelY, pixelX = self._get_pickup_pixel(uuid)
-            for i in range(3):
-                if pixelX is None:
-                    break
-                yield actions[OPEN], {'objectImageCoordsX': pixelX, 'objectImageCoordsY': pixelY}
-                status = self.obs.return_status
-                if status == 'SUCCESSFUL':
-                    self.opened.append(uuid)
-                    break
-                pixelY += 5
-                if pixelY > 599:
-                    break
-            print("open status:", status)
-            if status == 'NOT_OPENABLE':
-                for i in range(n_lookdown):
-                    yield actions[UP], {'horizon': self.HORIZON_DT}
-                self.opened.append(uuid)
-                return
-            if status == 'SUCCESSFUL':
-                self.opened.append(uuid)
-                for i in range(n_lookdown):
-                    yield actions[UP], {'horizon': self.HORIZON_DT}
-                return self.execution.put(lambda: self._check_inside(uuid))
-            if status == 'OBSTRUCTED':
-                yield self._get_action(BACKWARD)
-                continue
-            if status == 'OUT_OF_REACH':
-                for _ in range(5):
-                    yield self._get_action(FORWARD)
-            yield actions[LEFT], {'rotation': self.DT}
-        for i in range(n_lookdown):
-            yield actions[UP], {'horizon': self.HORIZON_DT}
-        self.opened.append(uuid)
-        return
+    # def _open_fn(self, uuid):
+    #     # New version of open function with pixel location
+    #     logging.error('Start Opening')
+    #     n_lookdown = 0
+    #     for _ in range(10):
+    #         rot_count = 0
+    #         in_view = self.mapper.objects[uuid]['in_view'] == True and self.mapper.objects[uuid]['view_mask'] is not None
+    #         while not in_view:
+    #             yield actions[LEFT], {'rotation': self.DT}
+    #             in_view = self.mapper.objects[uuid]['in_view'] == True and self.mapper.objects[uuid]['view_mask'] is not None
+    #             rot_count += 1
+    #             if rot_count == 35:
+    #                 break
+    #         if not in_view:
+    #             yield actions[DOWN], {'horizon': self.HORIZON_DT}
+    #             n_lookdown += 1
+    #             continue
+    #         pixelY, pixelX = self._get_pickup_pixel(uuid)
+    #         for i in range(3):
+    #             if pixelX is None:
+    #                 break
+    #             yield actions[OPEN], {'objectImageCoordsX': pixelX, 'objectImageCoordsY': pixelY}
+    #             status = self.obs.return_status
+    #             if status == 'SUCCESSFUL':
+    #                 self.opened.append(uuid)
+    #                 break
+    #             pixelY += 5
+    #             if pixelY > 599:
+    #                 break
+    #         print("open status:", status)
+    #         if status == 'NOT_OPENABLE':
+    #             for i in range(n_lookdown):
+    #                 yield actions[UP], {'horizon': self.HORIZON_DT}
+    #             self.opened.append(uuid)
+    #             return
+    #         if status == 'SUCCESSFUL':
+    #             self.opened.append(uuid)
+    #             for i in range(n_lookdown):
+    #                 yield actions[UP], {'horizon': self.HORIZON_DT}
+    #             return self.execution.put(lambda: self._check_inside(uuid))
+    #         if status == 'OBSTRUCTED':
+    #             yield self._get_action(BACKWARD)
+    #             continue
+    #         if status == 'OUT_OF_REACH':
+    #             for _ in range(5):
+    #                 yield self._get_action(FORWARD)
+    #         yield actions[LEFT], {'rotation': self.DT}
+    #     for i in range(n_lookdown):
+    #         yield actions[UP], {'horizon': self.HORIZON_DT}
+    #     self.opened.append(uuid)
+    #     return
 
     '''
     def _open_fn(self, uuid):
@@ -1491,44 +1748,44 @@ class Explore():
             yield self._get_action(FORWARD)
     '''
 
-    def _open_fn2(self, uuid):
-        # Andy: Need to change the rotation functions if we use this open function
-        logging.error('Start Opening')
-        self.opened.append(uuid)
-        yield actions[OPEN], {'objectId': uuid, 'amount': 1.}
-        if self.obs.return_status == 'SUCCESSFUL':
-            return
+    # def _open_fn2(self, uuid):
+    #     # Andy: Need to change the rotation functions if we use this open function
+    #     logging.error('Start Opening')
+    #     self.opened.append(uuid)
+    #     yield actions[OPEN], {'objectId': uuid, 'amount': 1.}
+    #     if self.obs.return_status == 'SUCCESSFUL':
+    #         return
 
-        if self.obs.return_status == 'OBSTRUCTED':
-            yield actions[LEFT], {'rotation': 180}
-            yield self._get_action(FORWARD)
-            yield actions[LEFT], {'rotation': 180}
-            yield actions[OPEN], {'objectId': uuid, 'amount': 1.}
-            if self.obs.return_status == 'SUCCESSFUL':
-                return
+    #     if self.obs.return_status == 'OBSTRUCTED':
+    #         yield actions[LEFT], {'rotation': 180}
+    #         yield self._get_action(FORWARD)
+    #         yield actions[LEFT], {'rotation': 180}
+    #         yield actions[OPEN], {'objectId': uuid, 'amount': 1.}
+    #         if self.obs.return_status == 'SUCCESSFUL':
+    #             return
 
-        yield actions[DOWN], {'horizon': self.HORIZON_DT}
-        yield actions[OPEN], {'objectId': uuid, 'amount': 1.}
-        if self.obs.return_status == 'SUCCESSFUL':
-            yield actions[DOWN], {'horizon': -self.HORIZON_DT}
-            return
-        yield actions[DOWN], {'horizon': -self.HORIZON_DT}
+    #     yield actions[DOWN], {'horizon': self.HORIZON_DT}
+    #     yield actions[OPEN], {'objectId': uuid, 'amount': 1.}
+    #     if self.obs.return_status == 'SUCCESSFUL':
+    #         yield actions[DOWN], {'horizon': -self.HORIZON_DT}
+    #         return
+    #     yield actions[DOWN], {'horizon': -self.HORIZON_DT}
 
-        yield FORWARD
-        yield actions[OPEN], {'objectId': uuid, 'amount': 1.}
-        if self.obs.return_status == 'SUCCESSFUL':
-            return
-        yield actions[DOWN], {'horizon': self.HORIZON_DT}
-        yield actions[OPEN], {'objectId': uuid, 'amount': 1.}
-        if self.obs.return_status == 'SUCCESSFUL':
-            yield actions[DOWN], {'horizon': -self.HORIZON_DT}
-            return
-        yield actions[DOWN], {'horizon': -self.HORIZON_DT}
+    #     yield FORWARD
+    #     yield actions[OPEN], {'objectId': uuid, 'amount': 1.}
+    #     if self.obs.return_status == 'SUCCESSFUL':
+    #         return
+    #     yield actions[DOWN], {'horizon': self.HORIZON_DT}
+    #     yield actions[OPEN], {'objectId': uuid, 'amount': 1.}
+    #     if self.obs.return_status == 'SUCCESSFUL':
+    #         yield actions[DOWN], {'horizon': -self.HORIZON_DT}
+    #         return
+    #     yield actions[DOWN], {'horizon': -self.HORIZON_DT}
 
     def _check_point_goal_reached(self, goal_loc_cell, dist_thresh=0.5):
         state_xy = self.mapper.get_position_on_map()
         state_xy = state_xy.astype(np.int32)
-        state_theta = self.mapper.get_rotation_on_map() + np.pi/2
+        # state_theta = self.mapper.get_rotation_on_map() + np.pi/2
 
         dist = np.sqrt(np.sum(np.square(state_xy - goal_loc_cell)))
         # print(dist*self.mapper.resolution, dist_thresh)
@@ -1596,12 +1853,131 @@ class Explore():
     #             fn = lambda: self._point_goal_fn(goal_loc_cell, explore_mode=explore_mode, dist_thresh=dist_thresh, iters=iters-1)
     #             self.execution.put(fn)
 
-    def _point_goal_fn_assigned(self, goal_loc_cell, explore_mode=False, dist_thresh=0.5, iters=20, search_mode=False, search_mode_reduced=False):
+    def get_path_to_goal(self):
+        '''
+        Must call set_point_goal first
+        '''
+
+        traversible = self.mapper.get_traversible_map(self.selem, POINT_COUNT, loc_on_map_traversible=True)
         state_xy = self.mapper.get_position_on_map()
         state_xy = state_xy.astype(np.int32)
-        state_theta = self.mapper.get_rotation_on_map() + np.pi/2
+        if self.use_FMM_planner:
+            state_theta = self.mapper.get_rotation_on_map() + np.pi/2
+        else:
+            state_theta = self.mapper.get_rotation_on_map()
+        if self.use_FMM_planner:
+            planner = FMMPlanner(traversible, 360//self.DT, int(self.STEP_SIZE/self.mapper.resolution), self.obstructed_actions)
+        else:
+            planner = ShortestPathPlanner(traversible, self.DT, self.STEP_SIZE, self.mapper.resolution, self.actions_inv, np.asarray(self.obstructed_states), np.stack(np.where(self.mapper.loc_on_map),1), step_count=self.step_count)
+        ind_i, ind_j = self.point_goal
+        goal_loc_cell = np.array([ind_j, ind_i])
+        goal_loc_cell = goal_loc_cell.astype(np.int32)
+        reachable = planner.set_goal(goal_loc_cell)
+
+        a, state, act_seq, path = planner.get_action(np.array([state_xy[0], state_xy[1], state_theta]), self.steps_since_previous_failure>=5)
+        return act_seq, path
+
+
+    # def _point_goal_fn_assigned_PLANONCE(self, goal_loc_cell, explore_mode=False, dist_thresh=0.5, iters=100, search_mode=False, search_mode_reduced=False):
+    #     state_xy = self.mapper.get_position_on_map()
+    #     state_xy = state_xy.astype(np.int32)
+    #     if self.use_FMM_planner:
+    #         state_theta = self.mapper.get_rotation_on_map() + np.pi/2
+    #     else:
+    #         state_theta = self.mapper.get_rotation_on_map()
+
+    #     dist = np.sqrt(np.sum(np.square(np.squeeze(state_xy) - np.squeeze(goal_loc_cell))))
+    #     # self.dists.append(dist)
+    #     # logging.error(f'{self.step_count}: target: {goal_loc_cell}, current_loc: {state_xy} {np.round(np.rad2deg(state_theta),2)}, dist: {np.round(self.mapper.resolution*np.round(dist, 2),2)}')
+    #     reached = self._check_point_goal_reached(goal_loc_cell, dist_thresh)
+    #     # print(iters)
+    #     # if len(self.dists)>=4:
+    #     #     dists_equal = False #self.dists[-4]==self.dists[-3] and self.dists[-3]==self.dists[-2] and self.dists[-2]==self.dists[-1]
+    #     # else:
+    #     #     dists_equal = False
+    #     if reached: # or dists_equal:
+    #         print("REACHED")
+    #         if explore_mode:
+    #             # yield actions[DOWN], {'horizon': self.HORIZON_DT}
+    #             # yield actions[DOWN], {'horizon': self.HORIZON_DT}
+    #             num_rot = int(np.floor((60 - self.head_tilt)/self.HORIZON_DT))
+    #             for _ in range(num_rot):
+    #                 yield actions[DOWN], {'horizon': self.HORIZON_DT}
+    #             for _ in range(360//self.DT):
+    #                 yield actions[LEFT], {'rotation': self.DT}
+    #             for _ in range(num_rot):
+    #                 yield actions[UP], {'horizon': self.HORIZON_DT}
+    #             # yield actions[UP], {'horizon': self.HORIZON_DT}
+    #             # yield actions[UP], {'horizon': self.HORIZON_DT}
+    #         return #actions[DONE]
+    #     else:
+    #         if iters==0:
+    #             return
+    #         traversible = self.mapper.get_traversible_map(self.selem, POINT_COUNT, loc_on_map_traversible=True)
+
+    #         if self.use_FMM_planner:
+    #             planner = FMMPlanner(traversible, 360//self.DT, int(self.STEP_SIZE/self.mapper.resolution), self.obstructed_actions)
+    #         else:
+    #             planner = ShortestPathPlanner(traversible, self.DT, self.STEP_SIZE, self.mapper.resolution, self.actions_inv, np.asarray(self.obstructed_states), np.stack(np.where(self.mapper.loc_on_map),1), step_count=self.step_count)
+
+    #         goal_loc_cell = goal_loc_cell.astype(np.int32)
+    #         reachable = planner.set_goal(goal_loc_cell)
+            
+    #         if self.use_FMM_planner:
+    #             self.fmm_dist = planner.fmm_dist*1.
+    #         # print(reachable[state_xy[1], state_xy[0]])
+    #         if reachable[state_xy[1], state_xy[0]]:
+    #             a, state, act_seq, path = planner.get_action(np.array([state_xy[0], state_xy[1], state_theta]), self.steps_since_previous_failure>=5)
+    #             self.act_seq = act_seq
+    #             if act_seq[0] == 0:
+    #                 logging.error('FMM failed')
+    #                 return
+    #             else:
+    #                 # print("ACT SEQ", act_seq)
+    #                 pass
+
+    #             # Fast Rotation (can't do fast rotation with fixed step size)
+    #             if False:
+    #                 rotations=act_seq[:-1]
+    #                 if len(rotations)>0:
+    #                     ty=rotations[0]
+    #                     assert all(map(lambda x: x==ty,rotations)), 'bad acts'
+    #                     ang = self.params[ty]['rotation'] * len(rotations)
+    #                     yield actions[ty], {'rotation': ang}
+    #                     # if self.obs.reward >= 1:
+    #                     #     logging.error('Reward >= 1: Episode success, returning')
+    #                     #     yield DONE
+    #                 yield FORWARD
+    #                 # if self.obs.reward >= 1:
+    #                 #     logging.error('Reward >= 1: Episode success, returning')
+    #                 #     yield DONE
+    #             else:
+    #                 for a in act_seq:
+    #                     yield a
+    #                     if search_mode or (self.exploring and self.search_pitch_explore):
+    #                         yield actions[DOWN], {'horizon': self.HORIZON_DT}
+    #                         yield actions[DOWN], {'horizon': self.HORIZON_DT}
+    #                         yield actions[DOWN], {'horizon': self.HORIZON_DT}
+    #                         yield actions[UP], {'horizon': self.HORIZON_DT}
+    #                         yield actions[UP], {'horizon': self.HORIZON_DT}
+    #                         yield actions[UP], {'horizon': self.HORIZON_DT}
+    #                     elif search_mode_reduced:
+    #                         yield actions[DOWN], {'horizon': self.HORIZON_DT}
+    #                         yield actions[UP], {'horizon': self.HORIZON_DT}
+
+    #             fn = lambda: self._point_goal_fn_assigned(goal_loc_cell, search_mode=search_mode, explore_mode=False, dist_thresh=dist_thresh, iters=iters-1)
+    #             self.execution.put(fn)
+
+    def _point_goal_fn_assigned(self, goal_loc_cell, explore_mode=False, dist_thresh=0.5, iters=100, search_mode=False, search_mode_reduced=False):
+        state_xy = self.mapper.get_position_on_map()
+        state_xy = state_xy.astype(np.int32)
+        if self.use_FMM_planner:
+            state_theta = self.mapper.get_rotation_on_map() + np.pi/2
+        else:
+            state_theta = self.mapper.get_rotation_on_map()
 
         dist = np.sqrt(np.sum(np.square(np.squeeze(state_xy) - np.squeeze(goal_loc_cell))))
+
         # self.dists.append(dist)
         # logging.error(f'{self.step_count}: target: {goal_loc_cell}, current_loc: {state_xy} {np.round(np.rad2deg(state_theta),2)}, dist: {np.round(self.mapper.resolution*np.round(dist, 2),2)}')
         reached = self._check_point_goal_reached(goal_loc_cell, dist_thresh)
@@ -1615,8 +1991,14 @@ class Explore():
             if explore_mode:
                 # yield actions[DOWN], {'horizon': self.HORIZON_DT}
                 # yield actions[DOWN], {'horizon': self.HORIZON_DT}
+                # for _ in range()
+                num_rot = int(np.floor((60 - self.head_tilt)/self.HORIZON_DT))
+                for _ in range(num_rot):
+                    yield actions[DOWN], {'horizon': self.HORIZON_DT}
                 for _ in range(360//self.DT):
                     yield actions[LEFT], {'rotation': self.DT}
+                for _ in range(num_rot):
+                    yield actions[UP], {'horizon': self.HORIZON_DT}
                 # yield actions[UP], {'horizon': self.HORIZON_DT}
                 # yield actions[UP], {'horizon': self.HORIZON_DT}
             return #actions[DONE]
@@ -1624,17 +2006,40 @@ class Explore():
             if iters==0:
                 return
             traversible = self.mapper.get_traversible_map(self.selem, POINT_COUNT, loc_on_map_traversible=True)
-            planner = FMMPlanner(traversible, 360//self.DT, int(self.STEP_SIZE/self.mapper.resolution), self.obstructed_actions)
+
+            # plt.figure()
+            # plt.imshow(traversible)
+            # plt.savefig('data/images/test.png')
+
+            if self.use_FMM_planner:
+                planner = FMMPlanner(traversible, 360//self.DT, int(self.STEP_SIZE/self.mapper.resolution), self.obstructed_actions)
+            else:
+                planner = ShortestPathPlanner(traversible, self.DT, self.STEP_SIZE, self.mapper.resolution, self.actions_inv, np.asarray(self.obstructed_states), np.stack(np.where(self.mapper.loc_on_map),1), step_count=self.step_count)
 
             goal_loc_cell = goal_loc_cell.astype(np.int32)
             reachable = planner.set_goal(goal_loc_cell)
-            self.fmm_dist = planner.fmm_dist*1.
+            
+            if self.use_FMM_planner:
+                self.fmm_dist = planner.fmm_dist*1.
             # print(reachable[state_xy[1], state_xy[0]])
             if reachable[state_xy[1], state_xy[0]]:
-                a, state, act_seq = planner.get_action(np.array([state_xy[0], state_xy[1], state_theta]))
+                a, state, act_seq, path = planner.get_action(np.array([state_xy[0], state_xy[1], state_theta]), self.steps_since_previous_failure>=5)
                 self.act_seq = act_seq
-                if act_seq[0] == 0:
-                    logging.error('FMM failed')
+                if len(act_seq)==0 or act_seq[0] == 0:
+                    print("Completed action sequence!")
+                    if explore_mode:
+                        # yield actions[DOWN], {'horizon': self.HORIZON_DT}
+                        # yield actions[DOWN], {'horizon': self.HORIZON_DT}
+                        # for _ in range()
+                        num_rot = int(np.floor((60 - self.head_tilt)/self.HORIZON_DT))
+                        for _ in range(num_rot):
+                            yield actions[DOWN], {'horizon': self.HORIZON_DT}
+                        for _ in range(360//self.DT):
+                            yield actions[LEFT], {'rotation': self.DT}
+                        for _ in range(num_rot):
+                            yield actions[UP], {'horizon': self.HORIZON_DT}
+                        # yield actions[UP], {'horizon': self.HORIZON_DT}
+                        # yield actions[UP], {'horizon': self.HORIZON_DT}
                     return
                 else:
                     # print("ACT SEQ", act_seq)
@@ -1656,7 +2061,7 @@ class Explore():
                     #     logging.error('Reward >= 1: Episode success, returning')
                     #     yield DONE
                 else:
-                    for a in act_seq:
+                    for a in act_seq[0:1]:
                         yield a
                         if search_mode or (self.exploring and self.search_pitch_explore):
                             yield actions[DOWN], {'horizon': self.HORIZON_DT}
@@ -1667,15 +2072,20 @@ class Explore():
                             yield actions[DOWN], {'horizon': self.HORIZON_DT}
                             yield actions[UP], {'horizon': self.HORIZON_DT}
 
-                fn = lambda: self._point_goal_fn_assigned(goal_loc_cell, search_mode=search_mode, explore_mode=False, dist_thresh=dist_thresh, iters=iters-1)
+                fn = lambda: self._point_goal_fn_assigned(goal_loc_cell, search_mode=search_mode, explore_mode=False, dist_thresh=dist_thresh, iters=iters-1, search_mode_reduced=search_mode_reduced)
                 self.execution.put(fn)
 
     def _get_reachable_area(self):
         traversible = self.mapper.get_traversible_map(self.selem, POINT_COUNT, loc_on_map_traversible=True)
-        planner = FMMPlanner(traversible, 360//self.DT, int(self.STEP_SIZE/self.mapper.resolution),self.obstructed_actions)
+        traversible = skimage.morphology.binary_opening(traversible, self.selem)
+        if self.use_FMM_planner:
+            planner = FMMPlanner(traversible, 360//self.DT, int(self.STEP_SIZE/self.mapper.resolution), self.obstructed_actions)
+        else:
+            planner = ShortestPathPlanner(traversible, self.DT, self.STEP_SIZE, self.mapper.resolution, self.actions_inv, np.asarray(self.obstructed_states), np.stack(np.where(self.mapper.loc_on_map),1), step_count=self.step_count)
+        # planner = FMMPlanner(traversible, 360//self.DT, int(self.STEP_SIZE/self.mapper.resolution),self.obstructed_actions)
         state_xy = self.mapper.get_position_on_map()
         state_xy = state_xy.astype(np.int32)
-        state_theta = self.mapper.get_rotation_on_map() + np.pi/2
+        # state_theta = self.mapper.get_rotation_on_map() + np.pi/2
         reachable = planner.set_goal(state_xy)
         # if np.sum(reachable)==0:
         #     st()
@@ -1697,6 +2107,12 @@ class Explore():
         # added to remove noise effects
         disk = skimage.morphology.disk(2)
         unexplored = skimage.morphology.binary_opening(unexplored, disk)
+        # plt.figure()
+        # plt.imshow(unexplored)
+        # plt.savefig('data/images/test.png')
+        # plt.figure()
+        # plt.imshow(reachable)
+        # plt.savefig('data/images/test1.png')
         self.unexplored_area = np.sum(unexplored)
         return unexplored
 

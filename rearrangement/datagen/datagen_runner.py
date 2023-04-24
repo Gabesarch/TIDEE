@@ -21,8 +21,8 @@ from allenact.utils.misc_utils import md5_hash_str_as_int
 from allenact_plugins.ithor_plugin.ithor_environment import IThorEnvironment
 from setproctitle import setproctitle as ptitle
 
-from rearrangement.datagen.datagen_constants import OBJECT_TYPES_TO_NOT_MOVE
-from rearrangement.datagen.datagen_utils import (
+from datagen.datagen_constants import OBJECT_TYPES_TO_NOT_MOVE
+from datagen.datagen_utils import (
     get_scenes,
     get_random_seeds,
     filter_pickupable,
@@ -31,12 +31,12 @@ from rearrangement.datagen.datagen_utils import (
     remove_objects_until_all_have_identical_meshes,
     check_object_opens,
 )
-from rearrangement.rearrange.constants import STARTER_DATA_DIR, THOR_COMMIT_ID
-from rearrangement.rearrange.environment import (
+from rearrange.constants import STARTER_DATA_DIR, THOR_COMMIT_ID
+from rearrange.environment import (
     RearrangeTHOREnvironment,
     RearrangeTaskSpec,
 )
-from rearrangement.rearrange_constants import OPENNESS_THRESHOLD, IOU_THRESHOLD
+from rearrange_constants import OPENNESS_THRESHOLD, IOU_THRESHOLD
 
 mp = mp.get_context("spawn")
 
@@ -65,6 +65,7 @@ def generate_one_rearrangement_given_initial_conditions(
     if not remove_objects_until_all_have_identical_meshes(controller):
         return None, None, None
 
+    controller.step("MakeAllObjectsUnbreakable")
     controller.step("InitialRandomSpawn", **start_kwargs)
     if not controller.last_event.metadata["lastActionSuccess"]:
         return None, None, None
@@ -342,7 +343,7 @@ def generate_rearrangements_for_scenes(
 
             while True:
                 try_count += 1
-                if try_count > 100:
+                if try_count > 300:
                     raise RuntimeError(
                         f"Something wrong with scene {scene}, please file an issue."
                     )

@@ -12,18 +12,17 @@ try:
 except ImportError:
     raise ImportError("Please update to allenact>=0.4.0.")
 
-from rearrangement.baseline_configs.rearrange_base import RearrangeBaseExperimentConfig
-from rearrangement.rearrange.baseline_models import (
+from baseline_configs.rearrange_base import RearrangeBaseExperimentConfig
+from rearrange.baseline_models import (
     TwoPhaseRearrangeActorCriticSimpleConvRNN,
     ResNetTwoPhaseRearrangeActorCriticRNN,
 )
-from rearrangement.rearrange.sensors import ClosestUnshuffledRGBRearrangeSensor
-from rearrangement.rearrange.sensors import (
+from rearrange.sensors import ClosestUnshuffledRGBRearrangeSensor
+from rearrange.sensors import (
     RGBRearrangeSensor,
-    DepthRearrangeSensor,
     InWalkthroughPhaseSensor,
 )
-from rearrangement.rearrange.tasks import RearrangeTaskSampler
+from rearrange.tasks import RearrangeTaskSampler
 
 
 class TwoPhaseRGBBaseExperimentConfig(RearrangeBaseExperimentConfig, ABC):
@@ -31,13 +30,8 @@ class TwoPhaseRGBBaseExperimentConfig(RearrangeBaseExperimentConfig, ABC):
         RGBRearrangeSensor(
             height=RearrangeBaseExperimentConfig.SCREEN_SIZE,
             width=RearrangeBaseExperimentConfig.SCREEN_SIZE,
-            use_resnet_normalization=False,
+            use_resnet_normalization=True,
             uuid=RearrangeBaseExperimentConfig.EGOCENTRIC_RGB_UUID,
-        ),
-        DepthRearrangeSensor(
-            height=RearrangeBaseExperimentConfig.SCREEN_SIZE,
-            width=RearrangeBaseExperimentConfig.SCREEN_SIZE,
-            uuid=RearrangeBaseExperimentConfig.EGOCENTRIC_DEPTH_UUID,
         ),
         ClosestUnshuffledRGBRearrangeSensor(
             height=RearrangeBaseExperimentConfig.SCREEN_SIZE,

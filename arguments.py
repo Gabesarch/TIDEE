@@ -69,7 +69,7 @@ parser.add_argument("--rearrange_interval_max", type=int, default=None, help="in
 parser.add_argument("--shuffle_maps", action="store_true", default=False, help="shuffle maps during eval")
 parser.add_argument("--load_submission", action="store_true", default=False, help="pick up where left off")
 parser.add_argument("--server_port", type=int, default=0, help="x server port")
-parser.add_argument("--dataset", type=str, default="2022", help="OPTIONS: 2021, 2022")
+parser.add_argument("--dataset", type=str, default="2023", help="THIS BRANCH ONLY SUPPORTS 2023")
 parser.add_argument("--get_pose_change_from_GT", action="store_true", default=False, help="get pose changes from GT")
 parser.add_argument("--use_GT_action_success", action="store_true", default=False, help="use GT for action success")
 parser.add_argument("--use_GT_masks", action="store_true", default=False, help="use GT masks")

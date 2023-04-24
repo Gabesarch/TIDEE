@@ -21,17 +21,17 @@ from allenact_plugins.ithor_plugin.ithor_util import (
     round_to_factor,
     include_object_data,
 )
-from rearrangement.datagen.datagen_constants import OBJECT_TYPES_TO_NOT_MOVE
-from rearrangement.datagen.datagen_utils import (
+from datagen.datagen_constants import OBJECT_TYPES_TO_NOT_MOVE
+from datagen.datagen_utils import (
     open_objs,
     get_object_ids_to_not_move_from_object_types,
     remove_objects_until_all_have_identical_meshes,
 )
-from rearrangement.rearrange.constants import (
+from rearrange.constants import (
     REQUIRED_THOR_VERSION,
     MAX_HAND_METERS,
 )
-from rearrangement.rearrange.utils import (
+from rearrange.utils import (
     BoundedFloat,
     RearrangeActionSpace,
     PoseMismatchError,
@@ -40,10 +40,7 @@ from rearrangement.rearrange.utils import (
     get_pose_info,
     iou_box_3d,
 )
-from rearrangement.rearrange_constants import IOU_THRESHOLD, OPENNESS_THRESHOLD, POSITION_DIFF_BARRIER
-
-# import hyperparams as hyp
-from arguments import args
+from rearrange_constants import IOU_THRESHOLD, OPENNESS_THRESHOLD, POSITION_DIFF_BARRIER
 
 
 class RearrangeMode(enum.Enum):
@@ -191,9 +188,12 @@ class RearrangeTHOREnvironment:
             when initializing the `ai2thor.controller.Controller` (e.g. width/height).
         """
         if ai2thor.__version__ is not None:  # Allows for custom THOR installs
-            if ai2thor.__version__ not in ["0.0.1", None] and version.parse(
-                ai2thor.__version__
-            ) < version.parse(REQUIRED_THOR_VERSION):
+            if (
+                ai2thor.__version__ not in ["0.0.1", None]
+                and (not ai2thor.__version__.startswith("0+"))
+                and version.parse(ai2thor.__version__)
+                < version.parse(REQUIRED_THOR_VERSION)
+            ):
                 raise ImportError(
                     f"To run the rearrangment baseline experiments you must use"
                     f" ai2thor version {REQUIRED_THOR_VERSION} or higher."
@@ -532,90 +532,62 @@ class RearrangeTHOREnvironment:
 
     def move_ahead(self) -> bool:
         """Move the agent ahead from its facing direction by 0.25 meters."""
-        if args.movementGaussianSigma is not None:
-            amount = np.random.normal(args.STEP_SIZE, scale=args.movementGaussianSigma)
-        else:
-            amount = args.STEP_SIZE
         return execute_action(
             controller=self.controller,
             action_space=self.action_space,
             action_fn=self.move_ahead,
             thor_action="MoveAhead",
-            default_thor_kwargs=dict(moveMagnitude=amount, **self.physics_step_kwargs),
+            default_thor_kwargs=self.physics_step_kwargs,
         )
 
     def move_back(self) -> bool:
         """Move the agent back from its facing direction by 0.25 meters."""
-        if args.movementGaussianSigma is not None:
-            amount = np.random.normal(args.STEP_SIZE, scale=args.movementGaussianSigma)
-        else:
-            amount = args.STEP_SIZE
         return execute_action(
             controller=self.controller,
             action_space=self.action_space,
             action_fn=self.move_back,
             thor_action="MoveBack",
-            default_thor_kwargs=dict(moveMagnitude=amount, **self.physics_step_kwargs),
+            default_thor_kwargs=self.physics_step_kwargs,
         )
 
     def move_right(self) -> bool:
         """Move the agent right from its facing direction by 0.25 meters."""
-        if args.movementGaussianSigma is not None:
-            amount = np.random.normal(args.STEP_SIZE, scale=args.movementGaussianSigma)
-        else:
-            amount = args.STEP_SIZE
         return execute_action(
             controller=self.controller,
             action_space=self.action_space,
             action_fn=self.move_right,
             thor_action="MoveRight",
-            # default_thor_kwargs=self.physics_step_kwargs,
-            default_thor_kwargs=dict(moveMagnitude=amount, **self.physics_step_kwargs)
+            default_thor_kwargs=self.physics_step_kwargs,
         )
 
     def move_left(self) -> bool:
         """Move the agent left from its facing direction by 0.25 meters."""
-        if args.movementGaussianSigma is not None:
-            amount = np.random.normal(args.STEP_SIZE, scale=args.movementGaussianSigma)
-        else:
-            amount = args.STEP_SIZE
         return execute_action(
             controller=self.controller,
             action_space=self.action_space,
             action_fn=self.move_left,
             thor_action="MoveLeft",
-            # default_thor_kwargs=self.physics_step_kwargs,
-            default_thor_kwargs=dict(moveMagnitude=amount, **self.physics_step_kwargs)
+            default_thor_kwargs=self.physics_step_kwargs,
         )
 
     def rotate_left(self) -> bool:
         """Rotate the agent left from its facing direction."""
-        if args.rotateGaussianSigma is not None:
-            amount = np.random.normal(args.DT, scale=args.rotateGaussianSigma)
-        else:
-            amount = args.DT
         return execute_action(
             controller=self.controller,
             action_space=self.action_space,
             action_fn=self.rotate_left,
             thor_action="RotateLeft",
-            # default_thor_kwargs=self.physics_step_kwargs,
-            default_thor_kwargs=dict(degrees=amount, **self.physics_step_kwargs)
+            default_thor_kwargs=self.physics_step_kwargs,
         )
 
     def rotate_right(self) -> bool:
         """Rotate the agent left from its facing direction."""
-        if args.rotateGaussianSigma is not None:
-            amount = np.random.normal(args.DT, scale=args.rotateGaussianSigma)
-        else:
-            amount = args.DT
         return execute_action(
             controller=self.controller,
             action_space=self.action_space,
             action_fn=self.rotate_right,
             thor_action="RotateRight",
-            # default_thor_kwargs=self.physics_step_kwargs,
-            default_thor_kwargs=dict(degrees=amount, **self.physics_step_kwargs)
+            default_thor_kwargs=self.physics_step_kwargs,
         )
 
     def stand(self) -> bool:
@@ -640,34 +612,22 @@ class RearrangeTHOREnvironment:
 
     def look_up(self) -> bool:
         """Turn the agent's head and camera up by 30 degrees."""
-        if args.rotateGaussianSigma is not None:
-            amount = np.random.normal(args.HORIZON_DT, scale=args.rotateGaussianSigma)
-        else:
-            amount = args.HORIZON_DT
-        amount = np.round(amount, 1) # amount must be multiple of 0.1
         return execute_action(
             controller=self.controller,
             action_space=self.action_space,
             action_fn=self.look_up,
             thor_action="LookUp",
-            # default_thor_kwargs=self.physics_step_kwargs,
-            default_thor_kwargs=dict(degrees=amount, **self.physics_step_kwargs)
+            default_thor_kwargs=self.physics_step_kwargs,
         )
 
     def look_down(self) -> bool:
         """Turn the agent's head and camera down by 30 degrees."""
-        if args.rotateGaussianSigma is not None:
-            amount = np.random.normal(args.HORIZON_DT, scale=args.rotateGaussianSigma)
-        else:
-            amount = args.HORIZON_DT
-        amount = np.round(amount, 1) # amount must be multiple of 0.1
         return execute_action(
             controller=self.controller,
             action_space=self.action_space,
             action_fn=self.look_down,
             thor_action="LookDown",
-            # default_thor_kwargs=self.physics_step_kwargs,
-            default_thor_kwargs=dict(degrees=amount, **self.physics_step_kwargs)
+            default_thor_kwargs=self.physics_step_kwargs,
         )
 
     def done(self) -> bool:
@@ -768,11 +728,7 @@ class RearrangeTHOREnvironment:
             action_space=self.action_space,
             action_fn=self.drop_held_object,
             thor_action="DropHandObject",
-            default_thor_kwargs={
-                "autoSimulation": False,
-                "randomMagnitude": 0.0,
-                **self.physics_step_kwargs,
-            },
+            default_thor_kwargs={"autoSimulation": False, **self.physics_step_kwargs,},
         )
 
     def drop_held_object_with_snap(self) -> bool:
@@ -828,43 +784,24 @@ class RearrangeTHOREnvironment:
             def position_to_tuple(position: Dict[str, float]):
                 return tuple(round(position[k], DEC) for k in ["x", "y", "z"])
 
-            # agent_xyz = position_to_tuple(agent["position"])
-            # agent_rot = (round(agent["rotation"]["y"] / 90) * 90) % 360
-            # agent_standing = int(agent["isStanding"])
-            # agent_horizon = round(agent["cameraHorizon"])
-
             agent_xyz = position_to_tuple(agent["position"])
-            agent_rot = (round(agent["rotation"]["y"] / args.DT) * args.DT) % 360
+            agent_rot = (round(agent["rotation"]["y"] / 90) * 90) % 360
             agent_standing = int(agent["isStanding"])
             agent_horizon = round(agent["cameraHorizon"])
 
             for valid_agent_pos in good_positions_to_drop_from:
                 # Checks if the agent is close enough to the target
                 # for the object to be snapped to the target location.
-
-                # valid_xyz = position_to_tuple(valid_agent_pos)
-                # valid_rot = (round(valid_agent_pos["rotation"] / 90) * 90) % 360
-                # valid_standing = int(valid_agent_pos["standing"])
-                # valid_horizon = round(valid_agent_pos["horizon"])
-
                 valid_xyz = position_to_tuple(valid_agent_pos)
-                valid_rot = (round(valid_agent_pos["rotation"] / args.DT) * args.DT) % 360
+                valid_rot = (round(valid_agent_pos["rotation"] / 90) * 90) % 360
                 valid_standing = int(valid_agent_pos["standing"])
                 valid_horizon = round(valid_agent_pos["horizon"])
-
-                if args.noisy_pose or not args.DT%90==0:
-                    # for noisy pose or if not snap to grid + DT is not 90, the agent location may not be exactly on the grid
-                    check = (np.linalg.norm(np.array(valid_xyz) - np.array(agent_xyz)) < args.STEP_SIZE/2 # Position  
-                        and np.abs(round(valid_rot) - agent_rot) < args.DT/2  # Rotation
-                        and valid_standing == agent_standing  # Standing
-                        and np.abs(round(valid_horizon) - agent_horizon) < args.HORIZON_DT/2)  # Horizon
-                else:
-                    check = (valid_xyz == agent_xyz  # Position
-                        and valid_rot == agent_rot  # Rotation
-                        and valid_standing == agent_standing  # Standing
-                        and round(valid_horizon) == agent_horizon)  # Horizon
-
-                if check:
+                if (
+                    valid_xyz == agent_xyz  # Position
+                    and valid_rot == agent_rot  # Rotation
+                    and valid_standing == agent_standing  # Standing
+                    and round(valid_horizon) == agent_horizon  # Horizon
+                ):
                     # Try a few locations near the target for robustness' sake
                     positions = [
                         {
@@ -928,7 +865,6 @@ class RearrangeTHOREnvironment:
                     "DropHeldObjectAhead",
                     forceAction=True,
                     autoSimulation=False,
-                    randomMagnitude=0.0,
                     **{**self.physics_step_kwargs, "actionSimulationSeconds": 1.5},
                 )
 
@@ -1429,7 +1365,7 @@ class RearrangeTHOREnvironment:
                 forceRigidbodySleep=True,
                 skipMoveable=True,
             )
-            # assert self.controller.last_event.metadata["lastActionSuccess"]
+            assert self.controller.last_event.metadata["lastActionSuccess"]
 
     def reset(
         self, task_spec: RearrangeTaskSpec, force_axis_aligned_start: bool = False,
@@ -1586,7 +1522,7 @@ class RearrangeTHOREnvironment:
             forceRigidbodySleep=True,
             skipMoveable=True,
         )
-        # assert self.controller.last_event.metadata["lastActionSuccess"]
+        assert self.controller.last_event.metadata["lastActionSuccess"]
 
     def shuffle(self, require_reset: bool = False):
         """Shuffle objects in the environment to start the unshuffle phase."""

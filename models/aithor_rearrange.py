@@ -26,14 +26,35 @@ from nets.segmentation.segmentation_helper import SemgnetationHelper
 import math
 """Inference loop for the AI2-THOR object rearrangement task."""
 from allenact.utils.misc_utils import NumpyJSONEncoder
+sys.path.append('rearrangement')
 from rearrangement.baseline_configs.rearrange_base import RearrangeBaseExperimentConfig
+from rearrange.constants import (
+    OBJECT_TYPES_WITH_PROPERTIES,
+    THOR_COMMIT_ID,
+)
 
-from rearrangement.baseline_configs.one_phase.one_phase_rgb_base import (
-    OnePhaseRGBBaseExperimentConfig,
+# from rearrangement.baseline_configs.one_phase.one_phase_rgb_base import (
+#     OnePhaseRGBBaseExperimentConfig,
+# # )
+# from rearrangement.baseline_configs.two_phase.two_phase_rgb_base import (
+#     TwoPhaseRGBBaseExperimentConfig,
+# )
+from rearrangement.baseline_configs.two_phase.two_phase_tidee_base import (
+    TwoPhaseTIDEEExperimentConfig,
 )
-from rearrangement.baseline_configs.two_phase.two_phase_rgb_base import (
-    TwoPhaseRGBBaseExperimentConfig,
+from rearrangement.rearrange.sensors import (
+    RGBRearrangeSensor,
+    InWalkthroughPhaseSensor,
+    DepthRearrangeSensor,
+    ClosestUnshuffledRGBRearrangeSensor,
 )
+from allenact.base_abstractions.sensor import SensorSuite, Sensor
+
+try:
+    from allenact.embodiedai.sensors.vision_sensors import DepthSensor
+except ImportError:
+    raise ImportError("Please update to allenact>=0.4.0.")
+
 from rearrangement.rearrange.tasks import RearrangeTaskSampler, WalkthroughTask, UnshuffleTask
 from utils.wctb import Utils, Relations_CenterOnly
 import re
@@ -65,6 +86,55 @@ def undo_format_a(a):
 
 # Note: parameters changed in rearrange/rearrange_base.py
 # Note: altered self.physics_step_kwargs in rearrange/environment.py to include correct DT and HORIZON_DT
+
+
+# from abc import ABC
+
+# class TwoPhaseTIDEEExperimentConfig(TwoPhaseRGBBaseExperimentConfig, ABC):
+
+#     SCREEN_SIZE = args.W
+#     THOR_CONTROLLER_KWARGS = {
+#         "rotateStepDegrees": args.DT,
+#         "snapToGrid": False,
+#         "quality": "Ultra",
+#         "width": SCREEN_SIZE,
+#         "height": SCREEN_SIZE,
+#         "commit_id": THOR_COMMIT_ID,
+#         "fastActionEmit": True,
+#     }
+
+#     EGOCENTRIC_RGB_UUID = "rgb"
+#     UNSHUFFLED_RGB_UUID = "unshuffled_rgb"
+#     EGOCENTRIC_RGB_RESNET_UUID = "rgb_resnet"
+#     UNSHUFFLED_RGB_RESNET_UUID = "unshuffled_rgb_resnet"
+#     EGOCENTRIC_DEPTH_UUID = "depth"
+#     UNSHUFFLED_DEPTH_UUID = "unshuffled_depth"
+#     EGOCENTRIC_DEPTH_RESNET_UUID = "depth_resnet"
+#     UNSHUFFLED_DEPTH_RESNET_UUID = "unshuffled_depth_resnet"
+
+#     SENSORS = [
+#         RGBRearrangeSensor(
+#             height=SCREEN_SIZE,
+#             width=SCREEN_SIZE,
+#             use_resnet_normalization=False,
+#             uuid=EGOCENTRIC_RGB_UUID,
+#         ),
+#         DepthRearrangeSensor(
+#             height=SCREEN_SIZE,
+#             width=SCREEN_SIZE,
+#             uuid=EGOCENTRIC_DEPTH_UUID,
+#         ),
+#         ClosestUnshuffledRGBRearrangeSensor(
+#             height=SCREEN_SIZE,
+#             width=SCREEN_SIZE,
+#             use_resnet_normalization=True,
+#             uuid=UNSHUFFLED_RGB_UUID,
+#         ),
+#         InWalkthroughPhaseSensor(),
+#     ]
+
+    
+
 
 class Ai2Thor(Ai2Thor_Base):
     def __init__(self):   
@@ -137,15 +207,24 @@ class Ai2Thor(Ai2Thor_Base):
         
         self.submission_file = f"./metrics/submission_{self.current_mode}_original{add_to_filename}_estimateDepth={self.estimate_depth}_noisyDepth={self.noisy_depth}_noisyPose={self.noisy_pose}_{self.tag}.json.gz"
         
-        self.task_sampler_params = TwoPhaseRGBBaseExperimentConfig.stagewise_task_sampler_args(
+        # self.task_sampler_params = TwoPhaseRGBBaseExperimentConfig.stagewise_task_sampler_args(
+        #     stage=self.current_mode, process_ind=0, total_processes=1,
+        # )
+        # self.two_phase_rgb_task_sampler: RearrangeTaskSampler = TwoPhaseRGBBaseExperimentConfig.make_sampler_fn(
+        #     **self.task_sampler_params,
+        #     force_cache_reset=True,  # cache used for efficiency during training, should be True during inference
+        #     only_one_unshuffle_per_walkthrough=False,  # used for efficiency during training, should be False during inference
+        #     epochs=1,
+        #     # shuffle=args.shuffle_maps,
+        # )
+        self.task_sampler_params = TwoPhaseTIDEEExperimentConfig.stagewise_task_sampler_args(
             stage=self.current_mode, process_ind=0, total_processes=1,
         )
-        self.two_phase_rgb_task_sampler: RearrangeTaskSampler = TwoPhaseRGBBaseExperimentConfig.make_sampler_fn(
+        self.two_phase_rgb_task_sampler: RearrangeTaskSampler = TwoPhaseTIDEEExperimentConfig.make_sampler_fn(
             **self.task_sampler_params,
             force_cache_reset=True,  # cache used for efficiency during training, should be True during inference
             only_one_unshuffle_per_walkthrough=False,  # used for efficiency during training, should be False during inference
             epochs=1,
-            shuffle=args.shuffle_maps,
         )
 
         self.how_many_unique_datapoints = self.two_phase_rgb_task_sampler.total_unique
@@ -298,7 +377,7 @@ class Ai2Thor(Ai2Thor_Base):
                 f" unique id '{self.two_phase_rgb_task_sampler.current_task_spec.unique_id}'"
             )
 
-            assert isinstance(walkthrough_task, WalkthroughTask)
+            # assert isinstance(walkthrough_task, WalkthroughTask)
 
             if self.estimate_depth: # or self.noisy_depth:
                 keep_head_down = True
@@ -376,8 +455,6 @@ class Ai2Thor(Ai2Thor_Base):
                 unshuffle_task, navigation, self.controller_unshuffle, 
                 vis=vis, steps_max=RearrangeBaseExperimentConfig.MAX_STEPS["walkthrough"], 
                 phase="UNSHUFFLE", inds_explore=inds_explore_walkthrough,
-                search_receptacles=self.search_receptacles,
-                search_V2=self.search_V2,
                 )
 
             object_tracker_unshuffle.filter_centroids_out_of_bounds()

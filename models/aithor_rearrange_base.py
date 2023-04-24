@@ -345,7 +345,16 @@ class Ai2Thor_Base(Base):
 
         return depth
 
-    def explore_env(self, task, navigation, controller, steps_max=None, vis=None, phase='', inds_explore=[], search_receptacles=False, search_V2=False):
+    def explore_env(
+        self, 
+        task, 
+        navigation, 
+        controller, 
+        steps_max=None, 
+        vis=None, 
+        phase='', 
+        inds_explore=[], 
+        ):
         '''
         Explores the environment and maps it out
         task: rearrange task class
@@ -353,13 +362,9 @@ class Ai2Thor_Base(Base):
         controller: ai2thor controller (used for visualization)
         steps_max: maximum number of steps to take during exploration
         vis: animation util class for generating movies
-        search_V2: search locations from walkthrough in map 
-        search_receptacles: search near receptacles after detecting them
         '''
         
         step = 0
-        inds_visited = []
-        receptacles_visited = []
         num_sampled = 0
         exploring = True
         while not task.is_done():
@@ -437,7 +442,7 @@ class Ai2Thor_Base(Base):
                 exploring = False
                 num_sampled += 1
                 try:
-                    if not inds_explore:
+                    if not inds_explore: # or phase=="WALKTHROUGH":
                         ind_i, ind_j = navigation.get_reachable_map_locations(sample=True)
                         if not ind_i:
                             break
@@ -449,7 +454,7 @@ class Ai2Thor_Base(Base):
 
                 print(f"{self.current_mode}: going to {ind_i} {ind_j}")
 
-                navigation.set_point_goal(ind_i, ind_j)  
+                navigation.set_point_goal(ind_i, ind_j, search_mode=True)  
             else:
                 task.step(action=action_ind)
 
@@ -464,9 +469,9 @@ class Ai2Thor_Base(Base):
                 if step >= steps_max:
                     break
 
-            if num_sampled>25:
+            if num_sampled>50:
                 break
-        
+                
         return object_tracker, inds_explore, camX0_T_origin
 
     def get_relations_pickupable(self, object_tracker):

@@ -26,14 +26,14 @@ from allenact_plugins.ithor_plugin.ithor_util import (
     round_to_factor,
     include_object_data,
 )
-from rearrangement.rearrange.constants import STEP_SIZE
-from rearrangement.rearrange.environment import (
+from rearrange.constants import STEP_SIZE
+from rearrange.environment import (
     RearrangeTHOREnvironment,
     RearrangeMode,
 )
 
 if TYPE_CHECKING:
-    from rearrangement.rearrange.tasks import UnshuffleTask
+    from rearrange.tasks import UnshuffleTask
 
 AgentLocKeyType = Tuple[float, float, int, int]
 

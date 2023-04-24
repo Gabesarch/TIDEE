@@ -1,4 +1,4 @@
-ai2thor>=4.2.0
+ai2thor>=5.0.0
 allenact
 allenact_plugins[ithor]
 stringcase
@@ -20,4 +20,4 @@ ipdb
 scikit-fmm
 scikit-image
 tensorboard
-transformers
+canonicaljson

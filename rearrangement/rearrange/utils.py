@@ -12,10 +12,6 @@ from allenact_plugins.ithor_plugin.ithor_util import include_object_data
 _UNIFORM_BOX_CACHE = {}
 
 
-# import hyperparams as hyp
-from arguments import args
-
-
 def save_frames_to_mp4(frames: Sequence[np.ndarray], file_name: str, fps=3):
     import matplotlib.pyplot as plt
     from matplotlib import animation
@@ -491,7 +487,6 @@ class ObjectInteractablePostionsCache:
                 action="GetInteractablePoses",
                 objectId=obj["objectId"],
                 positions=reachable_positions,
-                horizons=np.arange(-30, 60+1, args.HORIZON_DT),
             ).metadata
             assert metadata["lastActionSuccess"]
             self._key_to_positions[obj_key] = metadata["actionReturn"]

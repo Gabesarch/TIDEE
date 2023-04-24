@@ -12,9 +12,9 @@ except ImportError:
 from allenact.utils.misc_utils import prepare_locals_for_super
 from allenact_plugins.robothor_plugin.robothor_sensors import DepthSensorThor
 
-from rearrangement.rearrange.constants import STEP_SIZE
-from rearrangement.rearrange.environment import RearrangeTHOREnvironment
-from rearrangement.rearrange.tasks import (
+from rearrange.constants import STEP_SIZE
+from rearrange.environment import RearrangeTHOREnvironment
+from rearrange.tasks import (
     UnshuffleTask,
     WalkthroughTask,
     AbstractRearrangeTask,

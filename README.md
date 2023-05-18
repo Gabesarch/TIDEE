@@ -2,9 +2,7 @@
     TIDEE: Tidying Up Novel Rooms using Visuo-Semantic Commonsense Priors
 </h1>
 
-<h2 align="center">
-    ***NEW*** TIDEE on [2023 Room Rearrangement](https://github.com/allenai/ai2thor-rearrangement#-whats-new-in-the-2023-challenge) with improved navigation! See branch rearrange2023 (or click [here](https://github.com/Gabesarch/TIDEE/tree/rearrange2023))
-</h2>
+# ***NEW*** TIDEE on [2023 Room Rearrangement](https://github.com/allenai/ai2thor-rearrangement#-whats-new-in-the-2023-challenge) with improved navigation! See branch rearrange2023 (or click [here](https://github.com/Gabesarch/TIDEE/tree/rearrange2023))
 
 <p align="left">
 <!--     <a href="//github.com/allenai/ai2thor-rearrangement/blob/main/LICENSE">

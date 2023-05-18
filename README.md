@@ -112,19 +112,14 @@ For use with the tidy task or room rearrangement, place all checkpoints directly
 ## Running TIDEE on Room Rearrangement 
 The evaluation code for the rearrangement challenge task is taken from [Visual Room Rearrangement](https://github.com/allenai/ai2thor-rearrangement) and is included in the current repo in `rearrangement` modified to include estimated depth, noisy pose, noisy depth, and TIDEE config.
 
-To run TIDEE on the 2022 rearrangement benchmark combined set (train, val, test), run (for example) the following: 
+To run TIDEE on the 2023 rearrangement benchmark combined set (train, val, test), run (for example) the following: 
 ```
-python main.py --mode rearrangement --tag TIDEE_rearrengement_2022 --OT_dist_thresh 1.0 --thresh_num_dissimilar -1 --match_relations_walk --HORIZON_DT 30 --log_every 25 --dataset 2022 --eval_split combined
-```
-
-To run TIDEE on the 2021 rearrangement benchmark combined set (train, val, test), run (for example) the following: 
-```
-python main.py --mode rearrangement --tag TIDEE_rearrengement_2021 --OT_dist_thresh 1.0 --thresh_num_dissimilar -1 --match_relations_walk --HORIZON_DT 30 --log_every 25 --dataset 2021 --eval_split combined
+python main.py --mode rearrangement --tag TIDEE_rearrengement_2023 --OT_dist_thresh 1.0 --thresh_num_dissimilar -1 --match_relations_walk --HORIZON_DT 30 --log_every 25 --dataset 2023 --eval_split combined
 ```
 
 All metrics will be saved in the folder `metrics` every `log_every` episodes (specified by arguments). 
 
-To run with the open and close, append `--do_open`.
+Note: TIDEE does not support open/close for the 2023 version of the rearrangement benchmark.
 
 Noisy measurements: 
 (1) To run using estimated depth, append `--estimate_depth`.

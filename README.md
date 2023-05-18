@@ -42,14 +42,13 @@ with open("README.md", "r") as f:
     print(a[:a.index("</div>") + 6])
 -->
 <div class="toc">
-<ul>
 <li><a href="#installation"> Installation </a></li>
-</ul>
-<li><a href="#room-rearrangement-task"> Room Rearrangement Task </a></li></ul>
+<li><a href="#room-rearrangement-task"> Room Rearrangement Task </a></li><ul>
 <li><a href="#pretrained-networks"> Pretrained Networks</a></li>
+<li><a href="#running-tidee-on-room-rearrangement"> Running TIDEE on Room Rearrangement</a></li>
 <li><a href="#evaluation--videos"> Evaluation & Videos</a></li>
-<li><a href="#citation"> Citation </a></li>
 </ul>
+<li><a href="#citation"> Citation </a></li>
 </div>
 
 ## Installation 

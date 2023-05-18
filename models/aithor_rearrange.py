@@ -199,12 +199,12 @@ class Ai2Thor(Ai2Thor_Base):
         ########################################
 
         self.load_submission = args.load_submission
-        self.start_at_500 = False
-        if self.start_at_500: # run from 500- for multi-gpu 
-            add_to_filename = '_500on'
-        else:
-            add_to_filename = ''
-        
+        # self.start_at_500 = False
+        # if self.start_at_500: # run from 500- for multi-gpu 
+        #     add_to_filename = '_500on'
+        # else:
+        #     add_to_filename = ''
+        add_to_filename = ''
         self.submission_file = f"./metrics/submission_{self.current_mode}_original{add_to_filename}_estimateDepth={self.estimate_depth}_noisyDepth={self.noisy_depth}_noisyPose={self.noisy_pose}_{self.tag}.json.gz"
         
         # self.task_sampler_params = TwoPhaseRGBBaseExperimentConfig.stagewise_task_sampler_args(

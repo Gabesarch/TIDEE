@@ -748,7 +748,7 @@ class Ai2Thor_Base(Base):
                             yes_recept.append(True)
                         else:
                             yes_recept.append(False)
-                    yes_recept = np.array(yes_recept)
+                    yes_recept = np.asarray(yes_recept).astype(bool)
                     obj_centroids_ = obj_centroids[yes_recept]
                     obj_labels_ = list(obj_labels_np[yes_recept])
                     relation_ind = relation_fun(centroid_target, obj_centroids_, ground_plane_h=floor_height)

@@ -27,7 +27,9 @@
     </a> -->
 </p>
 
-This repo contains code and data for running TIDEE on the [2023 Room Rearrangement benchmark](https://github.com/allenai/ai2thor-rearrangement#-whats-new-in-the-2023-challenge). 
+This branch contains code and data for running TIDEE on the [2023 Room Rearrangement benchmark](https://github.com/allenai/ai2thor-rearrangement#-whats-new-in-the-2023-challenge). 
+
+Note: this is a self-contained branch for running the 2023 Rearrangement Challenge only. Please see the main branch for running the tidy task.
 
 **This version of TIDEE also contains improved mapping and planning!**
 

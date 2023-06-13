@@ -49,6 +49,7 @@ from rearrangement.rearrange.sensors import (
     ClosestUnshuffledRGBRearrangeSensor,
 )
 from allenact.base_abstractions.sensor import SensorSuite, Sensor
+import skimage
 
 try:
     from allenact.embodiedai.sensors.vision_sensors import DepthSensor
@@ -400,7 +401,7 @@ class Ai2Thor(Ai2Thor_Base):
             navigation = Navigation(keep_head_down=keep_head_down, keep_head_straight=keep_head_straight, search_pitch_explore=search_pitch_explore)
 
             rgb, depth = self.get_obs(walkthrough_task, head_tilt=0)
-            self.success_checker = CheckSuccessfulAction(rgb_init=rgb, H=self.H, W=self.W, controller=self.controller_walkthrough)
+            self.success_checker = CheckSuccessfulAction(rgb_init=rgb) #, H=self.H, W=self.W, controller=self.controller_walkthrough)
             self.update_navigation_obs(rgb,depth, True, navigation)
 
             if self.create_movie and i_task%self.log_every==0:
@@ -446,7 +447,7 @@ class Ai2Thor(Ai2Thor_Base):
                 vis.navigation = navigation
             
             rgb, depth = self.get_obs(unshuffle_task, head_tilt=0)
-            self.success_checker = CheckSuccessfulAction(rgb_init=rgb, H=self.H, W=self.W, controller=self.controller_unshuffle)
+            self.success_checker = CheckSuccessfulAction(rgb_init=rgb) #, H=self.H, W=self.W, controller=self.controller_unshuffle)
             self.update_navigation_obs(rgb,depth, True, navigation)
 
             print("STARTING:", self.controller_unshuffle.last_event.metadata['cameraPosition'], self.controller_unshuffle.last_event.metadata['agent']['cameraHorizon'], self.controller_unshuffle.last_event.metadata['agent']['rotation'])
@@ -952,38 +953,67 @@ class Visualize_Rearrange():
 
         return image_dict
 
-        
+# class CheckSuccessfulAction():
+#     '''
+#     (Hack) Check action success by comparing RGBs. 
+#     TODO: replace with a network
+#     '''
+#     def __init__(self, rgb_init, H, W, perc_diff_thresh = 0.05, controller=None):
+#         '''
+#         rgb_init: the rgb image from the spawn viewpoint W, H, 3
+#         This class does a simple check with the previous image to see if it completed the action 
+#         '''
+#         self.rgb_prev = rgb_init
+#         self.perc_diff_thresh = perc_diff_thresh
+#         self.H = H
+#         self.W = W
+#         self.controller = controller
+
+#     def update_image(self, rgb):
+#         self.rgb_prev = rgb
+
+#     def check_successful_action(self, rgb):
+#         if args.use_GT_action_success:
+#             success = self.controller.last_event.metadata["lastActionSuccess"]
+#         else:
+#             num_diff = np.sum(np.sum(self.rgb_prev.reshape(self.W*self.H, 3) - rgb.reshape(self.W*self.H, 3), 1)>0)
+#             # diff = np.linalg.norm(self.rgb_prev - rgb)
+#             # print(num_diff)
+#             if num_diff < self.perc_diff_thresh*self.W*self.H:
+#                 success = False
+#             else:
+#                 success = True
+#             # self.rgb_prev = rgb
+#         return success
+
 class CheckSuccessfulAction():
-    '''
-    (Hack) Check action success by comparing RGBs. 
-    TODO: replace with a network
-    '''
-    def __init__(self, rgb_init, H, W, perc_diff_thresh = 0.05, controller=None):
+    def __init__(self, rgb_init=None):
         '''
         rgb_init: the rgb image from the spawn viewpoint W, H, 3
         This class does a simple check with the previous image to see if it completed the action 
         '''
         self.rgb_prev = rgb_init
-        self.perc_diff_thresh = perc_diff_thresh
-        self.H = H
-        self.W = W
-        self.controller = controller
 
     def update_image(self, rgb):
         self.rgb_prev = rgb
 
-    def check_successful_action(self, rgb):
-        if args.use_GT_action_success:
-            success = self.controller.last_event.metadata["lastActionSuccess"]
+    def check_successful_action(self, rgb, action="Forward"):
+        wheres = np.where(self.rgb_prev != rgb)
+        wheres_ar = np.zeros(self.rgb_prev.shape)
+        wheres_ar[wheres] = 1
+        wheres_ar = np.sum(wheres_ar, axis=2).astype(bool)
+        connected_regions = skimage.morphology.label(wheres_ar, connectivity=2)
+        unique_labels = [i for i in range(1, np.max(connected_regions)+1)]
+        max_area = -1
+        for lab in unique_labels:
+            wheres_lab = np.where(connected_regions == lab)
+            max_area = max(len(wheres_lab[0]), max_area)
+        if (action in ['OpenObject', 'CloseObject']) and max_area > 500:
+            success = True
+        elif max_area > 100:
+            success = True
         else:
-            num_diff = np.sum(np.sum(self.rgb_prev.reshape(self.W*self.H, 3) - rgb.reshape(self.W*self.H, 3), 1)>0)
-            # diff = np.linalg.norm(self.rgb_prev - rgb)
-            # print(num_diff)
-            if num_diff < self.perc_diff_thresh*self.W*self.H:
-                success = False
-            else:
-                success = True
-            # self.rgb_prev = rgb
+            success = False
         return success
 
 if __name__ == '__main__':

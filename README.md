@@ -14,7 +14,7 @@
         <img alt="GitHub release" src="https://img.shields.io/github/release/allenai/ai2thor-rearrangement.svg">
     </a> -->
     <a href="https://arxiv.org/abs/2207.10761" target="_blank">
-        <img src="https://img.shields.io/badge/arXiv-2103.16544-<COLOR>">
+        <img src="https://img.shields.io/badge/arXiv-2207.10761-<COLOR>">
     </a>
 <!--     <a href="//arxiv.org/abs/2103.16544" target="_blank">
         <img src="https://img.shields.io/badge/venue-CVPR 2021-blue">

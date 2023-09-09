@@ -31,7 +31,6 @@ class Ai2Thor(Ai2Thor_Base):
         super(Ai2Thor, self).__init__()
 
         self.skip_if_exists = True
-        
 
         ns = {"train":args.n_train_messup, "val":args.n_val_messup, "test":args.n_test_messup}
         self.ns_split = list(np.arange(ns[args.eval_split]))

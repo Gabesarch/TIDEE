@@ -172,6 +172,7 @@ class Memory():
         self.input_dict['ddetr_batch_inds'] = torch.ones(len(features_ddetr))*0
         self.input_dict['ddetr_labels'] = labels
 
+    @torch.no_grad()
     def get_scene_graph(
         self, 
         mapname, 

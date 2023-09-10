@@ -6,6 +6,9 @@ st = ipdb.set_trace
 import utils.geom
 import torch
 
+from pathlib import Path
+import json
+
 def get_pointcloud(observations, fov):
 
     depth = observations['depth']
@@ -32,6 +35,10 @@ def get_pointcloud(observations, fov):
     xyz = xyz.reshape(-1, 3)
 
     return xyz
+
+def load_json(filename):
+    with open(filename) as h:
+        return json.load(h)
 
 def eul2rotm(rx, ry, rz):
     # inputs are shaped B
@@ -61,6 +68,22 @@ def eul2rotm(rx, ry, rz):
                 [r31, r32, r33]
                 ])
     return r
+
+def save_dict_as_json(data: dict, filepath: str):
+    filepath = Path(filepath)
+
+    try:
+        filepath.parent.mkdir(exist_ok=True)
+    except OSError as e:
+        # logger.error(f"Could not create directory: {e}", exc_info=True)
+        raise e
+
+    try:
+        with filepath.open(mode="w") as fp:
+            json.dump(data, fp)
+    except OSError as e:
+        # logger.error(f"Could not write file: {e}", exc_info=True)
+        raise e
 
 def undo_rotation_translation(xyz, rel_pos_tx_t0):
 

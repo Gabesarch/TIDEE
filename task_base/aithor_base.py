@@ -246,35 +246,35 @@ class Base():
         if self.set_name != 'test00':
             if not os.path.exists(self.checkpoint_path):
                 os.mkdir(self.checkpoint_path)
-            else:
-                print(self.checkpoint_path)
-                val = input("Path exists. Delete folder? [y/n]: ")
-                if val == 'y':
-                    import shutil
-                    shutil.rmtree(self.checkpoint_path)
-                    os.mkdir(self.checkpoint_path)
-                else:
-                    print("ENDING")
-                    assert(False)
+            # else:
+            #     print(self.checkpoint_path)
+            #     val = input("Path exists. Delete folder? [y/n]: ")
+            #     if val == 'y':
+            #         import shutil
+            #         shutil.rmtree(self.checkpoint_path)
+            #         os.mkdir(self.checkpoint_path)
+            #     else:
+            #         print("ENDING")
+            #         assert(False)
 
             if not os.path.exists(self.log_dir):
                 os.mkdir(self.log_dir)
-            else:
-                print(self.log_dir)
-                val = input("Path exists. Delete folder? [y/n]: ")
-                if val == 'y':
-                    for filename in os.listdir(self.log_dir):
-                        file_path = os.path.join(self.log_dir, filename)
-                        try:
-                            if os.path.isfile(file_path) or os.path.islink(file_path):
-                                os.unlink(file_path)
-                            elif os.path.isdir(file_path):
-                                shutil.rmtree(file_path)
-                        except Exception as e:
-                            print('Failed to delete %s. Reason: %s' % (file_path, e))
-                else:
-                    print("ENDING")
-                    assert(False)
+            # else:
+            #     print(self.log_dir)
+            #     val = input("Path exists. Delete folder? [y/n]: ")
+            #     if val == 'y':
+            #         for filename in os.listdir(self.log_dir):
+            #             file_path = os.path.join(self.log_dir, filename)
+            #             try:
+            #                 if os.path.isfile(file_path) or os.path.islink(file_path):
+            #                     os.unlink(file_path)
+            #                 elif os.path.isdir(file_path):
+            #                     shutil.rmtree(file_path)
+            #             except Exception as e:
+            #                 print('Failed to delete %s. Reason: %s' % (file_path, e))
+            #     else:
+            #         print("ENDING")
+            #         assert(False)
 
 
         self.fov = args.fov

@@ -1,5 +1,6 @@
 import argparse
 import numpy as np
+import os
 parser = argparse.ArgumentParser()
 
 
@@ -20,6 +21,17 @@ parser.add_argument("--H", type=int, default=480, help="image height")
 parser.add_argument("--visibilityDistance", type=float, default=1.5, help="visibility NOTE: this will not change rearrangement visibility")
 parser.add_argument("--dont_use_controller", action="store_true", default=False, help="set to True if do not want to init the controller")
 parser.add_argument("--dpi", type=int, default=100, help="dpi for matplotlib. higher value will give higher res movies but slower to create.")
+
+parser.add_argument("--max_traj_steps", type=int, default=1000, help="maximum trajectory steps")
+parser.add_argument("--max_api_fails", type=int, default=30, help="maximum allowable api failures")
+parser.add_argument("--metrics_dir", type=str, default="./metrics", help="where to output rendered movies")
+parser.add_argument('--skip_if_exists', default=False, action='store_true', help='skip if file exists in teach metrics')
+parser.add_argument("--episode_in_try_except", action="store_true", default=False, help="Continue to next episode if assertion error occurs? ")
+
+
+### WANDB
+parser.add_argument("--group", type=str, default="default", help="group name")
+parser.add_argument("--wandb_directory", type=str, default='./wandb', help="Path to wandb metadata")
 
 ###########%%%%%%% splits %%%%%%%###########
 parser.add_argument("--num_mem_houses", type=int, default=0, help="num memory houses")
@@ -352,6 +364,10 @@ parser.add_argument('--gpu', default=None, type=int, help='GPU id to use.')
 parser.add_argument('--num-machines', default=None, type=int)
 
 args = parser.parse_args()
+
+args.metrics_dir = os.path.join(args.metrics_dir, args.set_name)
+args.movie_dir = os.path.join(args.movie_dir, args.set_name)
+args.image_dir = os.path.join(args.image_dir, args.set_name)
 
 if args.batch_size is None:
    args.batch_size = args.S*args.data_batch_size

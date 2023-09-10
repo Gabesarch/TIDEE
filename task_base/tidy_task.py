@@ -5,11 +5,13 @@ import os
 from arguments import args
 import ipdb
 st = ipdb.set_trace
-from task_base.messup import mess_up_from_loaded
+from .messup import mess_up_from_loaded
 import utils.aithor
 import pickle
-from allenact_plugins.ithor_plugin.ithor_util import include_object_data
+# from allenact_plugins.ithor_plugin.ithor_util import include_object_data
 import matplotlib.pyplot as plt
+import json
+import copy
 
 class TIDEE_TASK():
 
@@ -31,14 +33,16 @@ class TIDEE_TASK():
         self.init_agent_rotation_random = init_agent_rotation_random
         self.controller = controller
         self.step_count = 0
+        self.api_fails = 0
         self.split = split
         mapnames_split_dict = self.get_scene_split()
         self.mapnames_split = mapnames_split_dict[split]
         self.W, self.H = args.W, args.H
         if max_episode_steps is None:
-            self.max_episode_steps = args.max_episode_steps
+            self.max_episode_steps = args.max_traj_steps
         else:
             self.max_episode_steps = max_episode_steps
+        self.max_api_fails = args.max_api_fails
 
         ns = {"train":args.n_train_messup, "val":args.n_val_messup, "test":args.n_test_messup}
         self.ns_split = list(np.arange(ns[split]))
@@ -50,6 +54,11 @@ class TIDEE_TASK():
         self.diplay_every = diplay_every # display every ten actions
 
         self.init_episodes()
+
+        with open('./data/object_receptacle_counts.json', 'r') as fp:
+            self.object_receptacle_counts = json.load(fp)
+
+
 
     def init_episodes(self):
 
@@ -66,12 +75,12 @@ class TIDEE_TASK():
         return f"{self.mapname_current}_{self.n}"
 
     def is_done(self):
-        return (self.step_count>=self.max_episode_steps or self.done_called)
+        return (self.step_count>=self.max_episode_steps or self.done_called or self.api_fails>=self.max_api_fails)
 
     def step(self, action, obj_relative_coord=None): #object_category=None):
 
         if not self.next_ep_called:
-            print("ERROR: Must call start_next_episode() after init before calling actions")
+            print("ERROR: Must call start_next_episode() OR set_next_episode_indices() then initialize_scene() after init before calling actions")
             assert(False)
 
         if self.is_done():
@@ -116,11 +125,22 @@ class TIDEE_TASK():
             self.put_object(x,y)
         elif action=="DropObject":
             self.pickup_object()
+        elif action=="OpenObject":
+            self.open_object(x,y)
+        elif action=="CloseObject":
+            self.close_object(x,y)
         elif action=="Done":
             self.done()
         else:
+            print(action)
             assert(False) # what action is this?
         self.step_count += 1
+        success = self.action_success()
+
+        if not success:
+            self.api_fails += 1
+
+        return success
 
     def action_success(self):
         if self.is_done():
@@ -155,8 +175,9 @@ class TIDEE_TASK():
 
     def skip_next_episode(self):
 
-        self.next_ep_called = True
+        self.next_ep_called = False
         self.step_count = 0
+        self.api_fails = 0
         
         n = next(self.ns_iter, None)
 
@@ -178,10 +199,87 @@ class TIDEE_TASK():
         self.done_called = False
         self.picked_up = []
 
+    def set_next_episode_indices(self):
+
+        self.next_ep_called = False
+        self.step_count = 0
+        self.api_fails = 0
+        
+        n = next(self.ns_iter, None)
+
+        if n is None:
+            self.mapname_current = next(self.mapnames_iter, None)
+
+            if self.mapname_current is None:
+                self.finish()
+                return 
+
+            self.ns_iter = iter(self.ns_split)
+
+            n = next(self.ns_iter)
+
+        self.n = n
+
+        self.done_called = False
+        self.picked_up = []
+
+    def initialize_scene(self):
+
+        self.next_ep_called = True
+
+        print(f"Starting episode {self.get_episode_name()}")
+
+        self.controller.reset(scene=self.mapname_current)
+
+        objects_original = self.controller.last_event.metadata['objects']
+        self.objects_original = objects_original
+
+        # mess up scene
+        messup_fname = os.path.join(args.mess_up_dir, self.mapname_current, f'{self.n}.p')
+        with open(messup_fname, 'rb') as f:
+            load_dict = pickle.load(f)
+        object_dict = load_dict['object_dict'] 
+        oop_IDs = load_dict['oop_IDs'] 
+        self.oop_IDs = oop_IDs
+        object_messup_meta = load_dict['objects_messup'] 
+
+        if args.save_object_images:
+            self.image_dict_original = utils.aithor.get_images_of_objects(self.controller, objects_original, oop_IDs, self.H,self.W)
+        else:
+            self.image_dict_original = None
+
+        mess_up_from_loaded(self.controller, object_messup_meta)
+
+        objects_messup = self.controller.last_event.metadata['objects']
+        self.objects_messup = objects_messup
+
+        if args.save_object_images:
+            self.image_dict_messup = utils.aithor.get_images_of_objects(self.controller, objects_messup, oop_IDs, self.H, self.W)
+        else:
+            self.image_dict_messup = None
+
+        event = self.controller.step(action="GetReachablePositions")
+        nav_pts = event.metadata["actionReturn"]
+        nav_pts = np.array([list(d.values()) for d in nav_pts])
+
+        if len(nav_pts)<5: # something wrong happened here, reset
+            self.controller.reset(scene=self.mapname_current)
+            mess_up_from_loaded(self.controller, object_messup_meta)
+
+        event = self.controller.step(action="GetReachablePositions")
+        nav_pts = event.metadata["actionReturn"]
+        nav_pts = np.array([list(d.values()) for d in nav_pts])
+
+        self.move_agent_to_scene_center(nav_pts)
+
     def start_next_episode(self):
+        '''
+        Equivalent to set_next_episode_indices() then initialize_scene() in a single step
+        '''
 
         self.next_ep_called = True
         self.step_count = 0
+        self.api_fails = 0
         
         n = next(self.ns_iter, None)
 
@@ -206,6 +304,7 @@ class TIDEE_TASK():
         self.controller.reset(scene=self.mapname_current)
 
         objects_original = self.controller.last_event.metadata['objects']
+        self.objects_original = objects_original
 
         # mess up scene
         messup_fname = os.path.join(args.mess_up_dir, self.mapname_current, f'{n}.p')
@@ -224,6 +323,7 @@ class TIDEE_TASK():
         mess_up_from_loaded(self.controller, object_messup_meta)
 
         objects_messup = self.controller.last_event.metadata['objects']
+        self.objects_messup = objects_messup
 
         if args.save_object_images:
             self.image_dict_messup = utils.aithor.get_images_of_objects(self.controller, objects_messup, oop_IDs, self.H, self.W)
@@ -243,45 +343,6 @@ class TIDEE_TASK():
         nav_pts = np.array([list(d.values()) for d in nav_pts])
 
         self.move_agent_to_scene_center(nav_pts)
-
-        # if hyp.save_messup or not hyp.load_messup:
-        #     print("Messing up environment...")
-        #     # mess up objects
-
-        #     num_objects = hyp.num_objects_messup # number of objects to have the agent mess up in the room
-        #     oop_objects_gt, oop_IDs = mess_up(self.controller, self.include_classes, num_objects, prob_drop=0.5, vis=vis)
-        #     objects_messup = self.controller.last_event.metadata['objects']
-        #     if hyp.save_messup:
-        #         save_dict = {'oop_objects_gt':oop_objects_gt, 'oop_IDs':oop_IDs, 'objects_messup':objects_messup}
-        #         root = os.path.join(hyp.messup_dir, mapname) 
-        #         if not os.path.exists(root):
-        #             os.mkdir(root)
-        #         # n = 0
-        #         pickle_fname = f'{n}.p'
-        #         fname = os.path.join(root, pickle_fname)
-        #         # if os.path.exists(fname):
-        #         #     continue
-        #         print("saving", fname)
-        #         with open(fname, 'wb') as f:
-        #             pickle.dump(save_dict, f, protocol=4)
-        #         print("done")
-        #         # assert(False)
-        #         continue
-        # elif hyp.load_messup:
-        #     root = os.path.join(hyp.messup_dir, mapname) 
-        #     # n = 0
-        #     pickle_fname = f'{n}.p'
-        #     fname = os.path.join(root, pickle_fname)
-        #     print("loading", fname)
-        #     with open(fname, 'rb') as f:
-        #         load_dict = pickle.load(f)
-        #     oop_objects_gt = load_dict['oop_objects_gt']
-        #     oop_IDs = load_dict['oop_IDs']
-        #     objects_messup = load_dict['objects_messup']
-        #     if args.save_object_images:
-        #         image_dict_original = utils.aithor.get_images_of_objects(self.controller, objects_original, oop_IDs, self.pix_T_camX, self.H,self.W)
-        #     mess_up_from_loaded(self.controller, objects_messup, oop_IDs=oop_IDs)
-    
         
     def render_episode_images(self):
         '''
@@ -297,20 +358,12 @@ class TIDEE_TASK():
         objects_cleanup = self.controller.last_event.metadata['objects']
 
         self.image_dict_cleanup = utils.aithor.get_images_of_objects(self.controller, objects_cleanup, self.oop_IDs, self.H,self.W)
-        # root_images = f'./MT_images/'
-        
-        # save cleanup images (after episode)
-        if not os.path.exists(args.image_dir):
-            os.mkdir(args.image_dir)
+
         root_folder = os.path.join(args.image_dir, 'cleanup')
-        if not os.path.exists(root_folder):
-            os.mkdir(root_folder)
         root_folder = os.path.join(root_folder, self.mapname_current)
-        if not os.path.exists(root_folder):
-            os.mkdir(root_folder)
         root_folder = os.path.join(root_folder, str(self.n))
         if not os.path.exists(root_folder):
-            os.mkdir(root_folder)
+            os.makedirs(root_folder, exist_ok = True)
         for key in list(self.image_dict_cleanup.keys()):
             if key not in self.picked_up:
                 continue
@@ -326,18 +379,11 @@ class TIDEE_TASK():
             plt.savefig(os.path.join(root_folder, f'{key}-{receptacle}.png'), bbox_inches='tight')
 
 
-        # save original location of objects location
-        if not os.path.exists(args.image_dir):
-            os.mkdir(args.image_dir)
         root_folder = os.path.join(args.image_dir, 'original')
-        if not os.path.exists(root_folder):
-            os.mkdir(root_folder)
         root_folder = os.path.join(root_folder, self.mapname_current)
-        if not os.path.exists(root_folder):
-            os.mkdir(root_folder)
         root_folder = os.path.join(root_folder, str(self.n))
         if not os.path.exists(root_folder):
-            os.mkdir(root_folder)
+            os.makedirs(root_folder, exist_ok = True)
         for key in list(self.image_dict_original.keys()):
             if key not in self.picked_up:
                 continue
@@ -353,18 +399,12 @@ class TIDEE_TASK():
             plt.savefig(os.path.join(root_folder, f'{key}-{receptacle}.png'), bbox_inches='tight')
 
 
-        # save messup locations of objects
-        if not os.path.exists(args.image_dir):
-            os.mkdir(args.image_dir)
         root_folder = os.path.join(args.image_dir, 'messup')
-        if not os.path.exists(root_folder):
-            os.mkdir(root_folder)
         root_folder = os.path.join(root_folder, self.mapname_current)
-        if not os.path.exists(root_folder):
-            os.mkdir(root_folder)
         root_folder = os.path.join(root_folder, str(self.n))
         if not os.path.exists(root_folder):
-            os.mkdir(root_folder)
+            os.makedirs(root_folder, exist_ok = True)
+            # os.mkdir(root_folder)
         for key in list(self.image_dict_messup.keys()):
             if key not in self.picked_up:
                 continue
@@ -417,16 +457,15 @@ class TIDEE_TASK():
     def held_object(self):
         """Return the data corresponding to the object held by the agent (if
         any)."""
-        with include_object_data(self.controller):
-            metadata = self.controller.last_event.metadata
+        metadata = self.controller.last_event.metadata
 
-            if len(metadata["inventoryObjects"]) == 0:
-                return None
+        if len(metadata["inventoryObjects"]) == 0:
+            return None
 
-            assert len(metadata["inventoryObjects"]) <= 1
+        assert len(metadata["inventoryObjects"]) <= 1
 
-            held_obj_id = metadata["inventoryObjects"][0]["objectId"]
-            return next(o for o in metadata["objects"] if o["objectId"] == held_obj_id)
+        held_obj_id = metadata["inventoryObjects"][0]["objectId"]
+        return next(o for o in metadata["objects"] if o["objectId"] == held_obj_id)
 
     def pickup_object(self, x: float, y: float) -> bool:
         """Pick up the object corresponding to x/y.
@@ -445,6 +484,7 @@ class TIDEE_TASK():
         """
         # if len(self.controller.last_event.metadata["inventoryObjects"]) != 0:
         #     return False
+
         self.controller.step(
             action="PickupObject",
             # objectId=object_id_select_,
@@ -454,6 +494,52 @@ class TIDEE_TASK():
         )
         if self.controller.last_event.metadata['lastActionSuccess']:
             self.picked_up.append(self.held_object["name"])
+            return True
+        return False
+
+    def open_object(self, x: float, y: float) -> bool:
+        """Opens the object corresponding to x/y.
+
+        # Parameters
+        x : (float, min=0.0, max=1.0) horizontal percentage from the last frame
+           that the target object is located.
+        y : (float, min=0.0, max=1.0) vertical percentage from the last frame
+           that the target object is located.
+
+        # Returns
+        `True` if the action was successful, otherwise `False`.
+        """
+
+        self.controller.step(
+            action="OpenObject",
+            x=x,
+            y=y,
+            forceAction=True,
+        )
+        if self.controller.last_event.metadata['lastActionSuccess']:
+            return True
+        return False
+
+    def close_object(self, x: float, y: float) -> bool:
+        """Closes the object corresponding to x/y.
+
+        # Parameters
+        x : (float, min=0.0, max=1.0) horizontal percentage from the last frame
+           that the target object is located.
+        y : (float, min=0.0, max=1.0) vertical percentage from the last frame
+           that the target object is located.
+
+        # Returns
+        `True` if the action was successful, otherwise `False`.
+        """
+
+        self.controller.step(
+            action="CloseObject",
+            x=x,
+            y=y,
+            forceAction=True,
+        )
+        if self.controller.last_event.metadata['lastActionSuccess']:
             return True
         return False
 
@@ -542,7 +628,6 @@ class TIDEE_TASK():
             return True
         return False
 
-
     # def pickup_object_category(self, object_category) -> bool:
     #     """Pick up the object corresponding to object catefory
 
@@ -577,8 +662,6 @@ class TIDEE_TASK():
     #                 self.picked_up.append(object_dict[key]["name"])
     #                 return True
     #     return False
-
-    
 
     def move_ahead(self) -> bool:
         """Move the agent ahead from its facing direction by 0.25 meters."""
@@ -695,87 +778,85 @@ class TIDEE_TASK():
         )
         self.done_called = True
 
+    # def place_object(self, object_category):
+    #     '''
+    #     Places object on object category if in view. If fail, then tries to place on general receptacle. 
+    #     '''
 
+    #     object_dict = {}
+    #     for obj in objects:
+    #         object_dict[obj['objectId']] = obj
+    #     object_id_select = []
+    #     for key in list(object_dict.keys()):
+    #         if object_category in key and object_dict[key]['visible']:
+    #             object_id_select.append(key)
 
-    def place_object(self, object_category):
-        '''
-        Places object on object category if in view. If fail, then tries to place on general receptacle. 
-        '''
+    #     if len(object_id_select)==0:
+    #         # no object of that category in view
+    #         pass
+    #     else:
+    #         # try to place on all the objects in view with that category label
+    #         for object_id_select_ in object_id_select:
+    #             # # move held object up otherwise placement can sometimes fail
+    #             # while True:
+    #             #     self.controller.step(
+    #             #         action="MoveHeldObjectUp",
+    #             #         moveMagnitude=0.05,
+    #             #         forceVisible=False
+    #             #     )
+    #             #     # sum_ += 0.05
+    #             #     if not self.controller.last_event.metadata["lastActionSuccess"]:
+    #             #         break
+    #             self.controller.step(
+    #                 action="PutObject",
+    #                 objectId=object_id_select_,
+    #                 forceAction=True,
+    #             )
+    #             if self.controller.last_event.metadata['lastActionSuccess']:
+    #                 return True
+    #             elif 'CLOSED' in self.controller.last_event.metadata["errorMessage"]: # open if closed
+    #                 self.controller.step(
+    #                     action="OpenObject",
+    #                     objectId=object_id_select_,
+    #                     openness=1,
+    #                     forceAction=True
+    #                 )
+    #                 self.controller.step(
+    #                     action="PutObject",
+    #                     objectId=object_id_select_,
+    #                     forceAction=True,
+    #                 )
+    #                 if self.controller.last_event.metadata['lastActionSuccess']:
+    #                     return True
 
-        object_dict = {}
-        for obj in objects:
-            object_dict[obj['objectId']] = obj
-        object_id_select = []
-        for key in list(object_dict.keys()):
-            if object_category in key and object_dict[key]['visible']:
-                object_id_select.append(key)
+    #     # We couldn't teleport the object to the target location, let's try placing it
+    #     # in a visible receptacle.
+    #     possible_receptacles = [
+    #         o for o in self.controller.last_event.metadata["objects"] if o["visible"] and o["receptacle"]
+    #     ]
+    #     possible_receptacles = sorted(
+    #         possible_receptacles, key=lambda o: (o["distance"], o["objectId"])
+    #     )
+    #     for possible_receptacle in possible_receptacles:
+    #         self.controller.step(
+    #             action="PlaceHeldObject",
+    #             objectId=possible_receptacle["objectId"],
+    #             # **self.physics_step_kwargs,
+    #         )
+    #         if self.controller.last_event.metadata["lastActionSuccess"]:
+    #             return False
 
-        if len(object_id_select)==0:
-            # no object of that category in view
-            pass
-        else:
-            # try to place on all the objects in view with that category label
-            for object_id_select_ in object_id_select:
-                # # move held object up otherwise placement can sometimes fail
-                # while True:
-                #     self.controller.step(
-                #         action="MoveHeldObjectUp",
-                #         moveMagnitude=0.05,
-                #         forceVisible=False
-                #     )
-                #     # sum_ += 0.05
-                #     if not self.controller.last_event.metadata["lastActionSuccess"]:
-                #         break
-                self.controller.step(
-                    action="PutObject",
-                    objectId=object_id_select_,
-                    forceAction=True,
-                )
-                if self.controller.last_event.metadata['lastActionSuccess']:
-                    return True
-                elif 'CLOSED' in self.controller.last_event.metadata["errorMessage"]: # open if closed
-                    self.controller.step(
-                        action="OpenObject",
-                        objectId=object_id_select_,
-                        openness=1,
-                        forceAction=True
-                    )
-                    self.controller.step(
-                        action="PutObject",
-                        objectId=object_id_select_,
-                        forceAction=True,
-                    )
-                    if self.controller.last_event.metadata['lastActionSuccess']:
-                        return True
+    #     # # We failed to place the object into a receptacle, let's just drop it.
+    #     # if not self.controller.last_event.metadata["lastActionSuccess"]:
+    #     #     self.controller.step(
+    #     #         "DropHandObjectAhead",
+    #     #         forceAction=True,
+    #     #         autoSimulation=False,
+    #     #         randomMagnitude=0.0,
+    #     #         **{**self.physics_step_kwargs, "actionSimulationSeconds": 1.5},
+    #     #     )
 
-        # We couldn't teleport the object to the target location, let's try placing it
-        # in a visible receptacle.
-        possible_receptacles = [
-            o for o in self.controller.last_event.metadata["objects"] if o["visible"] and o["receptacle"]
-        ]
-        possible_receptacles = sorted(
-            possible_receptacles, key=lambda o: (o["distance"], o["objectId"])
-        )
-        for possible_receptacle in possible_receptacles:
-            self.controller.step(
-                action="PlaceHeldObject",
-                objectId=possible_receptacle["objectId"],
-                # **self.physics_step_kwargs,
-            )
-            if self.controller.last_event.metadata["lastActionSuccess"]:
-                return False
-
-        # # We failed to place the object into a receptacle, let's just drop it.
-        # if not self.controller.last_event.metadata["lastActionSuccess"]:
-        #     self.controller.step(
-        #         "DropHandObjectAhead",
-        #         forceAction=True,
-        #         autoSimulation=False,
-        #         randomMagnitude=0.0,
-        #         **{**self.physics_step_kwargs, "actionSimulationSeconds": 1.5},
-        #     )
-
-        return False
+    #     return False
 
 
     def get_scene_split(self):
@@ -795,19 +876,19 @@ class TIDEE_TASK():
         # housesets = []
         for i in range(a_h.shape[0]):
             houseset = []
-            if args.do_kitchen:
+            if True: #args.do_kitchen:
                 mapname = 'FloorPlan' + str(a_h[i])
                 mapnames.append(mapname)
                 # houseset.append(mapname)
-            if args.do_living_room:
+            if True: #args.do_living_room:
                 mapname = 'FloorPlan' + str(b_h[i])
                 mapnames.append(mapname)
                 # houseset.append(mapname)
-            if args.do_bedroom:
+            if True: #args.do_bedroom:
                 mapname = 'FloorPlan' + str(c_h[i])
                 mapnames.append(mapname)
                 # houseset.append(mapname)
-            if args.do_bathroom:
+            if True: #args.do_bathroom:
                 mapname = 'FloorPlan' + str(d_h[i])
                 mapnames.append(mapname)
                 # houseset.append(mapname)
@@ -828,19 +909,19 @@ class TIDEE_TASK():
         # housesets = []
         for i in range(a_h.shape[0]):
             houseset = []
-            if args.do_kitchen:
+            if True: #args.do_kitchen:
                 mapname = 'FloorPlan' + str(a_h[i])
                 mapnames.append(mapname)
                 # houseset.append(mapname)
-            if args.do_living_room:
+            if True: #args.do_living_room:
                 mapname = 'FloorPlan' + str(b_h[i])
                 mapnames.append(mapname)
                 # houseset.append(mapname)
-            if args.do_bedroom:
+            if True: #args.do_bedroom:
                 mapname = 'FloorPlan' + str(c_h[i])
                 mapnames.append(mapname)
                 # houseset.append(mapname)
-            if args.do_bathroom:
+            if True: #args.do_bathroom:
                 mapname = 'FloorPlan' + str(d_h[i])
                 mapnames.append(mapname)
                 # houseset.append(mapname)
@@ -861,19 +942,19 @@ class TIDEE_TASK():
         # housesets = []
         for i in range(a_h.shape[0]):
             # houseset = []
-            if args.do_kitchen:
+            if True: #args.do_kitchen:
                 mapname = 'FloorPlan' + str(a_h[i])
                 mapnames.append(mapname)
                 # houseset.append(mapname)
-            if args.do_living_room:
+            if True: #args.do_living_room:
                 mapname = 'FloorPlan' + str(b_h[i])
                 mapnames.append(mapname)
                 # houseset.append(mapname)
-            if args.do_bedroom:
+            if True: #args.do_bedroom:
                 mapname = 'FloorPlan' + str(c_h[i])
                 mapnames.append(mapname)
                 # houseset.append(mapname)
-            if args.do_bathroom:
+            if True: #args.do_bathroom:
                 mapname = 'FloorPlan' + str(d_h[i])
                 mapnames.append(mapname)
                 # houseset.append(mapname)
@@ -886,6 +967,10 @@ class TIDEE_TASK():
 
         return mapnames_split
 
+    def get_metrics(self):
+        self.objects_current = self.controller.last_event.metadata['objects']
+        metrics = self.evaluate_cleanup(self.objects_original, self.objects_current, self.objects_messup)
+        return metrics
 
     # Below are some alternate evaluation methods that could be used but do not capture common sense placements well
 
@@ -893,66 +978,103 @@ class TIDEE_TASK():
         '''
         Measure euclidean distance from original location
         '''
-        original_dict = {}
-        for obj_idx in range(len(objs_original)):
-            obj = objs_original[obj_idx]
-            if (obj['objectType'] not in self.include_classes) or not obj["pickupable"]:
-                continue
-            original_dict[obj["name"]] = {'position':np.array(list(obj['axisAlignedBoundingBox']['center'].values()))}
 
-        total_displacement_cleanup = 0.0
-        for obj_i in range(len(objs_cleanup)):
-            obj_clean = objs_cleanup[obj_i]
-            if (obj_clean['objectType'] not in self.include_classes) or not obj_clean["pickupable"]:
-                continue
-            obj_clean_ID = obj_clean["name"]
-            obj_clean_pos = np.array(list(obj_clean['axisAlignedBoundingBox']['center'].values()))
-            obj_original_pos = original_dict[obj_clean_ID]['position']
-            euclidean = np.sqrt(np.sum((obj_original_pos - obj_clean_pos)**2))
-            total_displacement_cleanup += euclidean
+        objects_current_scenes = set([obj["objectType"] for obj in objs_original] + ["Floor"])
 
-        total_displacement_messup = 0.0
-        for obj_i in range(len(objs_messup)):
-            obj_messup = objs_messup[obj_i]
-            if (obj_messup['objectType'] not in self.include_classes) or not obj_messup["pickupable"]:
-                continue
-            obj_messup_ID = obj_messup["name"]
-            obj_messup_pos = np.array(list(obj_messup['axisAlignedBoundingBox']['center'].values()))
-            obj_original_pos = original_dict[obj_messup_ID]['position']
-            euclidean = np.sqrt(np.sum((obj_original_pos - obj_messup_pos)**2))
-            total_displacement_messup += euclidean
+        object_placement_total_cur_scene = {}
+        object_receptacle_probabilities = copy.deepcopy(self.object_receptacle_counts)
+        for k in self.object_receptacle_counts.keys():
+            receptacle_counts = self.object_receptacle_counts[k]
+            total = 0
+            for r in receptacle_counts.keys():
+                if r in objects_current_scenes:
+                    total += receptacle_counts[r]
+            object_placement_total_cur_scene[k] = total
+            for r in receptacle_counts.keys():
+                object_receptacle_probabilities[k][r] = max(object_receptacle_probabilities[k][r],0)
+                object_receptacle_probabilities[k][r] /= max(1,total)
 
-        displacement_measure = total_displacement_cleanup/total_displacement_messup
+        objs_messup_dict = {obj["name"]:obj for obj in objs_messup}
+        objs_original_dict = {obj["name"]:obj for obj in objs_original}
+
+        correctly_moved = 0
+        incorrectly_moved = 0
+        for obj_id in self.picked_up:
+            if obj_id in self.oop_IDs:
+                correctly_moved += 1
+            else:
+                incorrectly_moved += 1
+
+        num_moved = 0
+        num_dirty = 0
+        energies_dirty = {"energy_oop":0, "energy_allpickedandoop":0, "energy_all":0}
+        energies_current = {"energy_oop":0, "energy_allpickedandoop":0, "energy_all":0}
+        energies_original = {"energy_oop":0, "energy_allpickedandoop":0, "energy_all":0}
+        energies_best = {"energy_oop":0, "energy_allpickedandoop":0, "energy_all":0}
+        for obj_current in objs_cleanup:
+            if not obj_current["pickupable"]:
+                continue
+
+            obj_name = obj_current["name"]
+            obj_messup = objs_messup_dict[obj_name]
+            obj_original = objs_original_dict[obj_name]
+
+            mess_o_type = obj_messup["objectType"]
+            mess_r_type = "Floor" if obj_messup["parentReceptacles"] is None else obj_messup["parentReceptacles"][0].split('|')[0]
+            clean_o_type = obj_current["objectType"]
+            clean_r_type = "Floor" if obj_current["parentReceptacles"] is None else obj_current["parentReceptacles"][0].split('|')[0]
+            original_o_type = obj_original["objectType"]
+            original_r_type = "Floor" if obj_original["parentReceptacles"] is None else obj_original["parentReceptacles"][0].split('|')[0]
+
+            # energy of oop objects only
+            if obj_name in self.oop_IDs:
+                energies_dirty["energy_oop"] += object_receptacle_probabilities[mess_o_type][mess_r_type]
+                energies_current["energy_oop"] += object_receptacle_probabilities[clean_o_type][clean_r_type]
+                energies_original["energy_oop"] += object_receptacle_probabilities[original_o_type][original_r_type]
+                energies_best["energy_oop"] += max(list(object_receptacle_probabilities[clean_o_type].values()))
+            
+            # energy of any picked up object + oop object
+            if obj_name in (self.picked_up + self.oop_IDs):
+                energies_dirty["energy_allpickedandoop"] += object_receptacle_probabilities[mess_o_type][mess_r_type]
+                energies_current["energy_allpickedandoop"] += object_receptacle_probabilities[clean_o_type][clean_r_type]
+                energies_original["energy_allpickedandoop"] += object_receptacle_probabilities[original_o_type][original_r_type]
+                energies_best["energy_allpickedandoop"] += max(list(object_receptacle_probabilities[clean_o_type].values()))
+            
+            # energy of all objects
+            energies_dirty["energy_all"] += object_receptacle_probabilities[mess_o_type][mess_r_type]
+            energies_current["energy_all"] += object_receptacle_probabilities[clean_o_type][clean_r_type]
+            energies_original["energy_all"] += object_receptacle_probabilities[original_o_type][original_r_type]
+            energies_best["energy_all"] += max(list(object_receptacle_probabilities[clean_o_type].values()))
         
-        return displacement_measure
+        metrics = {}
+        for k in energies_current.keys():
+            # take min to restrict metric 0-1
+            metrics[k] = np.clip((1 - energies_current[k]/energies_original[k]) / (1 - energies_dirty[k]/energies_original[k]), a_min=0, a_max=1)
 
-    # # compute global precision and recall of detector (i.e. picked up items)
-    # oop_IDs_check = oop_IDs.copy()
-    # true_pos = 0
-    # false_pos = 0
-    # for p_u_id in picked_up:
-    #     if p_u_id in oop_IDs_check:
-    #         oop_IDs_check.remove(p_u_id)
-    #         true_pos += 1
-    #     else:
-    #         false_pos += 1
-    # base = true_pos + false_pos
-    # if base==0:
-    #     precision = 0
-    # else:
-    #     precision = true_pos / (true_pos + false_pos)
-    # recall = true_pos / hyp.num_objects_messup
-    # errors['precision'].append(precision)
-    # errors['recall'].append(recall)
+        metrics["correctly_moved"] = correctly_moved
+        metrics["incorrectly_moved"] = incorrectly_moved
+        metrics["missed_moved"] = len(self.oop_IDs) - correctly_moved
+        metrics["total_moved"] = correctly_moved+incorrectly_moved
+        metrics["steps"] = self.step_count
+        metrics["errors"] = self.api_fails
+        
+        return metrics
 
-    # print("PRECISION:", precision)
-    # print("RECALL:", recall)
+    def aggregate_metrics(self, metrics):
+        keys_include = ['energy_oop', 'energy_allpickedandoop', 'energy_all', 'correctly_moved', 'incorrectly_moved', 'missed_moved', 'steps', 'errors']
 
-    # displacement_measure = self.evaluate_cleanup(objects_original, objects_cleanup, objects_messup)
-    # print("DISPLACEMENT MEASURE:", displacement_measure)
-    # displacement_measures.append(displacement_measure)  
-    # print("ERRORS", errors[episode]) 
-    # errors['displacement_measures'] = displacement_measures
+        metrics_avg = {}
+        for f_n in keys_include:
+            metrics_avg[f_n] = 0
+        count = 0
+        for k in metrics.keys():
+            for f_n in keys_include:
+                metrics_avg[f_n] += metrics[k][f_n]
+            count += 1
+        for f_n in keys_include:
+            metrics_avg[f_n] /=  count 
+        metrics_avg['num episodes'] = len(metrics.keys())
 
+        return metrics_avg
 
 

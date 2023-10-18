@@ -395,39 +395,41 @@ def init_controller(
             print("SERVER PORT=", server_port)
             return None, None
     else:
-        # server_port = 3
-        if args.do_headless_rendering:
-            from ai2thor.platform import CloudRendering
-            controller = Controller(
-                    # scene=mapname, 
-                    visibilityDistance=visibilityDistance,
-                    gridSize=STEP_SIZE,
-                    width=W,
-                    height=H,
-                    fieldOfView=fov,
-                    renderObjectImage=True,
-                    renderDepthImage=True,
-                    renderInstanceSegmentation=True,
-                    # x_display=str(server_port),
-                    snapToGrid=False,
-                    rotateStepDegrees=DT,
-                    platform=CloudRendering,
-                    )
+        if not (args.mode=="rearrangement"):
+            # server_port = 3
+            if args.do_headless_rendering:
+                from ai2thor.platform import CloudRendering
+                controller = Controller(
+                        # scene=mapname, 
+                        visibilityDistance=visibilityDistance,
+                        gridSize=STEP_SIZE,
+                        width=W,
+                        height=H,
+                        fieldOfView=fov,
+                        renderObjectImage=True,
+                        renderDepthImage=True,
+                        renderInstanceSegmentation=True,
+                        # x_display=str(server_port),
+                        snapToGrid=False,
+                        rotateStepDegrees=DT,
+                        platform=CloudRendering,
+                        )
         else:
-            controller = Controller(
-                    # scene=mapname, 
-                    visibilityDistance=visibilityDistance,
-                    gridSize=STEP_SIZE,
-                    width=W,
-                    height=H,
-                    fieldOfView=fov,
-                    renderObjectImage=True,
-                    renderDepthImage=True,
-                    renderInstanceSegmentation=True,
-                    # x_display=str(server_port),
-                    snapToGrid=False,
-                    rotateStepDegrees=DT,
-                    )
+            if not (args.mode=="rearrangement"):
+                controller = Controller(
+                        # scene=mapname, 
+                        visibilityDistance=visibilityDistance,
+                        gridSize=STEP_SIZE,
+                        width=W,
+                        height=H,
+                        fieldOfView=fov,
+                        renderObjectImage=True,
+                        renderDepthImage=True,
+                        renderInstanceSegmentation=True,
+                        # x_display=str(server_port),
+                        snapToGrid=False,
+                        rotateStepDegrees=DT,
+                        )
 
     
     return controller, server_port

@@ -139,6 +139,11 @@ class Ai2Thor(Ai2Thor_Base):
         self.task_sampler_params = TwoPhaseTIDEEExperimentConfig.stagewise_task_sampler_args(
             stage=self.current_mode, process_ind=0, total_processes=1,
         )
+        if args.do_headless_rendering:
+            from ai2thor.platform import CloudRendering
+            self.task_sampler_params['thor_controller_kwargs'] = {"platform": CloudRendering}
+        else:
+            self.task_sampler_params['x_display'] = str(args.server_port)
         self.two_phase_rgb_task_sampler: RearrangeTaskSampler = TwoPhaseTIDEEExperimentConfig.make_sampler_fn(
             **self.task_sampler_params,
             force_cache_reset=True,  # cache used for efficiency during training, should be True during inference

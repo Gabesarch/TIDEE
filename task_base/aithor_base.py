@@ -158,20 +158,8 @@ class Base():
         self.mapnames_test = mapnames
         self.housesets_test = housesets
 
-        # np.random.seed(1)
-        # random.shuffle(mapnames)
-        # self.mapnames = mapnames
-        # self.num_episodes = len(self.mapnames)   
-
         self.class_agnostic = False
         self.random_select = True
-
-        # self.include_classes = [
-        #     'Laptop', 'WateringCan', 'GarbageCan', 'ArmChair', 'Statue', 'Cabinet', 'FloorLamp', 'CoffeeTable', 
-        #     'Chair', 'Floor', 'Curtains', 'Pillow', 'Drawer', 'DeskLamp', 'Sofa', 'HousePlant', 'KeyChain', 'CreditCard', 
-        #     'Window', 'Dresser', 'Television', 'Painting', 'LightSwitch', 'RemoteControl', 'SideTable', 'Box', 'Watch',
-        #     'Plate'
-        #     ]
 
         self.include_classes = [
             'ShowerDoor', 'Cabinet', 'CounterTop', 'Sink', 'Towel', 'HandTowel', 'TowelHolder', 'SoapBar', 
@@ -211,7 +199,7 @@ class Base():
 
         self.z_params = navigation_calibration_params()
 
-        self.classes_to_save = self.include_classes #[] # args.classes_to_save #['DishSponge','Bed','Sofa','Laptop', 'CoffeeTable', 'FloorLamp', 'TVStand', 'Pillow', 'ArmChair', 'HousePlant', 'Painting', 'Dresser', 'Desk', 'RemoteControl'] #['Bed', 'Laptop', 'Sofa'] #['RemoteControl', 'Laptop', 'CoffeeMachine', 'DishSponge', 'Bed', 'DeskLamp', 'Toilet', 'HandTowel', 'Chair']
+        self.classes_to_save = self.include_classes 
         self.class_to_save_to_id = {self.classes_to_save[i]:i for i in range(len(self.classes_to_save))}
 
         self.name_to_id = {}
@@ -233,15 +221,12 @@ class Base():
                 
         self.set_name = args.set_name #'test'
         print("set name=", self.set_name)
-        # self.data_path = f'/home/sirdome/katefgroup/gsarch/ithor/data'
         self.data_path = args.data_path  #f'.'
         self.checkpoint_root = self.data_path + '/checkpoints'
         if not os.path.exists(self.checkpoint_root):
             os.mkdir(self.checkpoint_root)
         self.log_dir = '.' + '/tb' + '/' + self.set_name
         self.checkpoint_path = self.checkpoint_root + '/' + self.set_name
-
-        # self.homepath = f'/home/sirdome/katefgroup/gsarch/ithor/data/test'
         
         if self.set_name != 'test00':
             if not os.path.exists(self.checkpoint_path):
@@ -279,20 +264,6 @@ class Base():
 
         self.fov = args.fov
 
-        # crop dims
-        # self.batch_size = args.batch_size
-        # self.num_objects = args.objects_per_batch
-        # self.num_frames = 5 # frames per movie
-        # self.num_eval_iters = 20 #20
-
-        # self.amodal_boxes = args.amodal
-
-            
-        # if args.do_eval:
-        #     self.max_iters = self.start_step + 1
-        # else:
-        # self.max_iters = args.max_iters
-
 
         actions = ['MoveAhead', 'MoveLeft', 'MoveRight', 'MoveBack', 'RotateRight', 'RotateLeft']
 
@@ -323,28 +294,12 @@ class Base():
 
         self.visibilityDistance = args.visibilityDistance
 
-        self.obs.camera_height = 1.5759992599487305 #event.metadata['cameraPosition']['y']
-        # obs.image_list = [event.frame]
-        # obs.depth_map_list = [event.depth_frame]
+        self.obs.camera_height = 1.5759992599487305
         self.obs.camera_aspect_ratio = [self.H, self.W]
         self.obs.camera_field_of_view = self.fov
-        # obs.return_status = "SUCCESSFUL" if event.metadata['lastActionSuccess'] else "OBSTRUCTED"
         self.obs.head_tilt = 0.0 #event.metadata['agent']['cameraHorizon']
         self.obs.reward = 0
         self.obs.goal = Namespace(metadata={"category": 'cover'})
-        # obs.position = event.metadata['cameraPosition']
-
-        # if args.do_eval:
-        #     self.log_freq = 1
-        #     self.eval_freq =  1 #50
-        #     self.save_freq = 10000000
-        # else:
-        #     self.log_freq = min(args.val_freq, args.log_freq)
-        #     self.eval_freq =  args.log_freq #50
-        #     self.save_freq = args.save_freq
-        
-        # print("LOG FREQ:", self.log_freq)
-        # print("SAVE FREQ:", self.save_freq)
 
         self.writer = SummaryWriter(self.log_dir, max_queue=args.MAX_QUEUE, flush_secs=60)
 
@@ -358,7 +313,6 @@ class Base():
                 self.fov,
                 self.DT,
                 args.visibilityDistance,
-                # use_startx=False,
                 )
 
 def init_controller(
@@ -368,7 +322,6 @@ def init_controller(
     fov,
     DT,
     visibilityDistance,
-    # use_startx=False,
     ):
 
     if args.start_startx:
@@ -415,9 +368,6 @@ def init_controller(
                         platform=CloudRendering,
                         )
             else:
-                return None, None
-        else:
-            if not (args.mode=="rearrangement"):
                 controller = Controller(
                         # scene=mapname, 
                         visibilityDistance=visibilityDistance,
@@ -432,8 +382,8 @@ def init_controller(
                         snapToGrid=False,
                         rotateStepDegrees=DT,
                         )
-            else:
-                return None, None
+        else:
+            return None, None
 
     
     return controller, server_port

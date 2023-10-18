@@ -414,6 +414,8 @@ def init_controller(
                         rotateStepDegrees=DT,
                         platform=CloudRendering,
                         )
+            else:
+                return None, None
         else:
             if not (args.mode=="rearrangement"):
                 controller = Controller(
@@ -430,6 +432,8 @@ def init_controller(
                         snapToGrid=False,
                         rotateStepDegrees=DT,
                         )
+            else:
+                return None, None
 
     
     return controller, server_port

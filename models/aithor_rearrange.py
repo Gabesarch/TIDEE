@@ -33,12 +33,6 @@ from rearrange.constants import (
     THOR_COMMIT_ID,
 )
 
-# from rearrangement.baseline_configs.one_phase.one_phase_rgb_base import (
-#     OnePhaseRGBBaseExperimentConfig,
-# # )
-# from rearrangement.baseline_configs.two_phase.two_phase_rgb_base import (
-#     TwoPhaseRGBBaseExperimentConfig,
-# )
 from rearrangement.baseline_configs.two_phase.two_phase_tidee_base import (
     TwoPhaseTIDEEExperimentConfig,
 )
@@ -64,11 +58,6 @@ import json
 import gzip
 import os
 from utils.noise_models.sim_kinect_noise import add_gaussian_shifts, filterDisp
-
-# print("NOTE: SUPPRESSING WARNINGS!!!!!")
-# import warnings
-# warnings.filterwarnings("ignore")
-
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 random.seed(args.seed)
@@ -87,56 +76,7 @@ def undo_format_a(a):
 
 # Note: parameters changed in rearrange/rearrange_base.py
 # Note: altered self.physics_step_kwargs in rearrange/environment.py to include correct DT and HORIZON_DT
-
-
-# from abc import ABC
-
-# class TwoPhaseTIDEEExperimentConfig(TwoPhaseRGBBaseExperimentConfig, ABC):
-
-#     SCREEN_SIZE = args.W
-#     THOR_CONTROLLER_KWARGS = {
-#         "rotateStepDegrees": args.DT,
-#         "snapToGrid": False,
-#         "quality": "Ultra",
-#         "width": SCREEN_SIZE,
-#         "height": SCREEN_SIZE,
-#         "commit_id": THOR_COMMIT_ID,
-#         "fastActionEmit": True,
-#     }
-
-#     EGOCENTRIC_RGB_UUID = "rgb"
-#     UNSHUFFLED_RGB_UUID = "unshuffled_rgb"
-#     EGOCENTRIC_RGB_RESNET_UUID = "rgb_resnet"
-#     UNSHUFFLED_RGB_RESNET_UUID = "unshuffled_rgb_resnet"
-#     EGOCENTRIC_DEPTH_UUID = "depth"
-#     UNSHUFFLED_DEPTH_UUID = "unshuffled_depth"
-#     EGOCENTRIC_DEPTH_RESNET_UUID = "depth_resnet"
-#     UNSHUFFLED_DEPTH_RESNET_UUID = "unshuffled_depth_resnet"
-
-#     SENSORS = [
-#         RGBRearrangeSensor(
-#             height=SCREEN_SIZE,
-#             width=SCREEN_SIZE,
-#             use_resnet_normalization=False,
-#             uuid=EGOCENTRIC_RGB_UUID,
-#         ),
-#         DepthRearrangeSensor(
-#             height=SCREEN_SIZE,
-#             width=SCREEN_SIZE,
-#             uuid=EGOCENTRIC_DEPTH_UUID,
-#         ),
-#         ClosestUnshuffledRGBRearrangeSensor(
-#             height=SCREEN_SIZE,
-#             width=SCREEN_SIZE,
-#             use_resnet_normalization=True,
-#             uuid=UNSHUFFLED_RGB_UUID,
-#         ),
-#         InWalkthroughPhaseSensor(),
-#     ]
-
     
-
-
 class Ai2Thor(Ai2Thor_Base):
     def __init__(self):   
 
@@ -186,38 +126,16 @@ class Ai2Thor(Ai2Thor_Base):
         self.create_movie = args.create_movie
 
         ##### ESTIMATED DEPTH AND POSE #########
-        # args.noisy_pose = False
-        # args.estimate_depth = False
-        # args.noisy_depth = False
         self.estimate_depth = args.estimate_depth
         self.noisy_depth = args.noisy_depth
         self.noisy_pose = args.noisy_pose
         assert(not (self.noisy_depth and self.estimate_depth) )
-        # if self.estimate_depth: 
-        #     assert(args.HORIZON_DT==45) # depth estimator works best at 45 degrees
-            # args.HORIZON_DT = 45
-            # args.DT = 45
         ########################################
 
         self.load_submission = args.load_submission
-        # self.start_at_500 = False
-        # if self.start_at_500: # run from 500- for multi-gpu 
-        #     add_to_filename = '_500on'
-        # else:
-        #     add_to_filename = ''
         add_to_filename = ''
         self.submission_file = f"./metrics/submission_{self.current_mode}_original{add_to_filename}_estimateDepth={self.estimate_depth}_noisyDepth={self.noisy_depth}_noisyPose={self.noisy_pose}_{self.tag}.json.gz"
         
-        # self.task_sampler_params = TwoPhaseRGBBaseExperimentConfig.stagewise_task_sampler_args(
-        #     stage=self.current_mode, process_ind=0, total_processes=1,
-        # )
-        # self.two_phase_rgb_task_sampler: RearrangeTaskSampler = TwoPhaseRGBBaseExperimentConfig.make_sampler_fn(
-        #     **self.task_sampler_params,
-        #     force_cache_reset=True,  # cache used for efficiency during training, should be True during inference
-        #     only_one_unshuffle_per_walkthrough=False,  # used for efficiency during training, should be False during inference
-        #     epochs=1,
-        #     # shuffle=args.shuffle_maps,
-        # )
         self.task_sampler_params = TwoPhaseTIDEEExperimentConfig.stagewise_task_sampler_args(
             stage=self.current_mode, process_ind=0, total_processes=1,
         )
@@ -299,7 +217,6 @@ class Ai2Thor(Ai2Thor_Base):
             self.depth_estimator = None
 
         if self.noisy_depth:
-            # print("REMOVED GUASSIAN SHIFT FROM NOISY DEPTH - ADD BACK.")
             # from utils.noise_models.redwood_depth_noise_model import RedwoodDepthNoiseModel
             # self.depth_noise_model = RedwoodDepthNoiseModel()
             self.dot_pattern_ = cv2.imread("utils/noise_models/data/kinect-pattern_3x3.png", 0)
@@ -336,25 +253,6 @@ class Ai2Thor(Ai2Thor_Base):
             print("SUBMISSION NAME:", self.submission_file)
 
             walkthrough_task = self.two_phase_rgb_task_sampler.next_task()
-
-            # if i_task==0:
-            #         walkthrough_task.step(action=0)
-            #         unshuffle_task: UnshuffleTask = self.two_phase_rgb_task_sampler.next_task()
-            #         unshuffle_task.step(action=0)
-            #         print("skipping..")
-            #         continue
-
-            # try:
-            #     id_ = int(self.two_phase_rgb_task_sampler.current_task_spec.unique_id[-2:])
-            # except:
-            #     id_ = int(self.two_phase_rgb_task_sampler.current_task_spec.unique_id[-1:])
-            # if id_>10:
-            #     walkthrough_task.step(action=0)
-            #     unshuffle_task: UnshuffleTask = self.two_phase_rgb_task_sampler.next_task()
-            #     unshuffle_task.step(action=0)
-            #     print(f"skipping {id_} ..")
-            #     continue
-                
 
             if len(self.iter_interval)>0:
                 if i_task<self.iter_interval[0] or i_task>self.iter_interval[1]:
@@ -576,14 +474,9 @@ class Ai2Thor(Ai2Thor_Base):
 
         unshuffle_start_poses, walkthrough_start_poses, current_poses =  unshuffle_task.env.poses
 
-        # ips, gps, cps = unshuffle_task.env.poses
         start_energies = unshuffle_task.start_energies
-        # end_energies = unshuffle_task.env.pose_difference_energy(gps, cps)
-        # start_energy = start_energies.sum()
-        # end_energy = end_energies.sum()
 
         start_misplaceds = start_energies > 0.0
-        # end_misplaceds = end_energies > 0.0
 
         where_misplaces = np.where(start_misplaceds)[0]
 
@@ -882,28 +775,13 @@ class Visualize_Rearrange():
                 det = (flat_to_obj[0] * agent_local_forward[2]- agent_local_forward[0] * flat_to_obj[2])
                 turn_angle = math.atan2(det, np.dot(agent_local_forward, flat_to_obj))
 
-                # # add noise so not right in the center
-                # noise = np.random.normal(0, 2, size=2)
-
                 turn_yaw = np.degrees(turn_angle) #+ noise[0]
 
                 turn_pitch = -np.degrees(math.atan2(agent_to_obj[1], flat_dist_to_obj)) #+ noise[1]
 
                 controller.step('TeleportFull', position=dict(x=closest_pos[0], y=closest_pos[1]+0.675, z=closest_pos[2]), rotation=dict(x=0.0, y=turn_yaw, z=0.0), horizon=turn_pitch, standing=True, forceAction=True)
                 origin_T_camX = utils.aithor.get_origin_T_camX(controller.last_event, False)
-                # controller.step('TeleportFull', position=dict(x=farthest_pos[0], y=farthest_pos[1], z=farthest_pos[2]), rotation=dict(x=0.0, y=turn_yaw, z=0.0), horizon=turn_pitch, standing=True, forceAction=True)
-            
-                # rgbs = []
-                # fovs = [120, 100, 90]
-                # for fov in list(fovs):
-                # fov = 100
-                # third_party_event = controller.step(
-                #     action="UpdateThirdPartyCamera",
-                #     thirdPartyCameraId=0,
-                #     position=dict(x=closest_pos[0], y=closest_pos[1]+0.675, z=closest_pos[2]),
-                #     rotation=dict(x=turn_pitch, y=turn_yaw, z=0),
-                #     fieldOfView=fov,
-                # )
+
                 rgb = controller.last_event.frame
 
                 hfov = float(fov) * np.pi / 180.
@@ -952,39 +830,6 @@ class Visualize_Rearrange():
         controller.step('TeleportFull', position=dict(x=position_start["x"], y=position_start["y"], z=position_start["z"]), rotation=dict(x=rotation_start["x"], y=rotation_start["y"], z=rotation_start["z"]), horizon=head_tilt, standing=True, forceAction=True)
 
         return image_dict
-
-# class CheckSuccessfulAction():
-#     '''
-#     (Hack) Check action success by comparing RGBs. 
-#     TODO: replace with a network
-#     '''
-#     def __init__(self, rgb_init, H, W, perc_diff_thresh = 0.05, controller=None):
-#         '''
-#         rgb_init: the rgb image from the spawn viewpoint W, H, 3
-#         This class does a simple check with the previous image to see if it completed the action 
-#         '''
-#         self.rgb_prev = rgb_init
-#         self.perc_diff_thresh = perc_diff_thresh
-#         self.H = H
-#         self.W = W
-#         self.controller = controller
-
-#     def update_image(self, rgb):
-#         self.rgb_prev = rgb
-
-#     def check_successful_action(self, rgb):
-#         if args.use_GT_action_success:
-#             success = self.controller.last_event.metadata["lastActionSuccess"]
-#         else:
-#             num_diff = np.sum(np.sum(self.rgb_prev.reshape(self.W*self.H, 3) - rgb.reshape(self.W*self.H, 3), 1)>0)
-#             # diff = np.linalg.norm(self.rgb_prev - rgb)
-#             # print(num_diff)
-#             if num_diff < self.perc_diff_thresh*self.W*self.H:
-#                 success = False
-#             else:
-#                 success = True
-#             # self.rgb_prev = rgb
-#         return success
 
 class CheckSuccessfulAction():
     def __init__(self, rgb_init=None):

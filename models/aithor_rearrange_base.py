@@ -321,15 +321,15 @@ class Ai2Thor_Base(Base):
 
         h, w = depth.shape 
 
-        # depth_interp = add_gaussian_shifts(depth)
+        depth_interp = add_gaussian_shifts(depth)
 
-        # disp_= focal_length * baseline_m / (depth_interp + 1e-10)
-        # depth_f = np.round(disp_ * 8.0)/8.0
+        disp_= focal_length * baseline_m / (depth_interp + 1e-10)
+        depth_f = np.round(disp_ * 8.0)/8.0
 
-        # out_disp = filterDisp(depth_f, self.dot_pattern_, invalid_disp_)
+        out_disp = filterDisp(depth_f, self.dot_pattern_, invalid_disp_)
 
-        # depth = focal_length * baseline_m / out_disp
-        # depth[out_disp == invalid_disp_] = 0 
+        depth = focal_length * baseline_m / out_disp
+        depth[out_disp == invalid_disp_] = 0 
         # factor = 6.0
         factor = 5.0
         

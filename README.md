@@ -65,12 +65,6 @@ git clone git@github.com:Gabesarch/TIDEE.git
 conda create -n TIDEE python=3.8
 ```
 
-You also will want to set CUDA paths. For example (on our tested machine with CUDA 11.1): 
-```bash
-export CUDA_HOME="/opt/cuda/11.1.1"
-export LD_LIBRARY_PATH="${CUDA_HOME}/lib64:$LD_LIBRARY_PATH"
-```
-
 **(2)** Install [PyTorch](https://pytorch.org/get-started/locally/) with the CUDA version you have. For example, run the following for CUDA 11.1: 
 ```bash
 pip install torch==1.8.1+cu111 torchvision==0.9.1+cu111 torchaudio==0.8.1 -f https://download.pytorch.org/whl/torch_stable.html
@@ -96,6 +90,8 @@ cd ./SOLQ/models/ops && sh make.sh && cd ../../..
 ```bash
 sh setup.sh
 ```
+
+**(6)** Download pretrained networks and put them in the `checkpoints` folder. See <a href="#pretrained-networks"> Pretrained networks</a>
 
 ### Remote Server Setup
 To run the Ai2THOR simulator on a headless machine, you must either stat an X-server or use Ai2THOR's new headless mode. 

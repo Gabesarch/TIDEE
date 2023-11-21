@@ -12,18 +12,18 @@ try:
 except ImportError:
     raise ImportError("Please update to allenact>=0.4.0.")
 
-from rearrangement.baseline_configs.rearrange_base import RearrangeBaseExperimentConfig
-from rearrangement.rearrange.baseline_models import (
+from baseline_configs.rearrange_base import RearrangeBaseExperimentConfig
+from rearrange.baseline_models import (
     TwoPhaseRearrangeActorCriticSimpleConvRNN,
     ResNetTwoPhaseRearrangeActorCriticRNN,
 )
-from rearrangement.rearrange.sensors import ClosestUnshuffledRGBRearrangeSensor
-from rearrangement.rearrange.sensors import (
+from rearrange.sensors import ClosestUnshuffledRGBRearrangeSensor
+from rearrange.sensors import (
     RGBRearrangeSensor,
     InWalkthroughPhaseSensor,
     DepthRearrangeSensor,
 )
-from rearrangement.rearrange.tasks import RearrangeTaskSampler
+from rearrange.tasks import RearrangeTaskSampler
 from arguments import args
 
 class TwoPhaseTIDEEExperimentConfig(RearrangeBaseExperimentConfig, ABC):

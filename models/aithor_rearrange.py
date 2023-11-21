@@ -27,16 +27,16 @@ import math
 """Inference loop for the AI2-THOR object rearrangement task."""
 from allenact.utils.misc_utils import NumpyJSONEncoder
 sys.path.append('rearrangement')
-from rearrangement.baseline_configs.rearrange_base import RearrangeBaseExperimentConfig
+from baseline_configs.rearrange_base import RearrangeBaseExperimentConfig
 from rearrange.constants import (
     OBJECT_TYPES_WITH_PROPERTIES,
     THOR_COMMIT_ID,
 )
 
-from rearrangement.baseline_configs.two_phase.two_phase_tidee_base import (
+from baseline_configs.two_phase.two_phase_tidee_base import (
     TwoPhaseTIDEEExperimentConfig,
 )
-from rearrangement.rearrange.sensors import (
+from rearrange.sensors import (
     RGBRearrangeSensor,
     InWalkthroughPhaseSensor,
     DepthRearrangeSensor,
@@ -50,7 +50,7 @@ try:
 except ImportError:
     raise ImportError("Please update to allenact>=0.4.0.")
 
-from rearrangement.rearrange.tasks import RearrangeTaskSampler, WalkthroughTask, UnshuffleTask
+from rearrange.tasks import RearrangeTaskSampler, WalkthroughTask, UnshuffleTask
 from utils.wctb import Utils, Relations_CenterOnly
 import re
 import time
@@ -116,8 +116,8 @@ class Ai2Thor(Ai2Thor_Base):
                 a_formatted = format_a(a)
                 self.rearrange_pickupable.append(a_formatted)
 
-        self.current_mode = args.eval_split # "test"
-        self.tag = args.tag # "arxiv"
+        self.current_mode = args.eval_split 
+        self.tag = args.tag 
         self.verbose = False
         self.search_V2 = True
         self.search_receptacles = False
@@ -180,12 +180,8 @@ class Ai2Thor(Ai2Thor_Base):
 
         # relations used for determining differences
         self.relations_executors_pairs = {
-            # 'above': self.relations_util._is_above,
-            # 'below': self.relations_util._is_below,
             'next-to': self.relations_util._is_next_to,
             'supported-by': self.relations_util._is_supported_by,
-            # 'similar-height-to': self.relations_util._is_similar_height,
-            # 'farthest-to': self.relations_util._farthest,
             'closest-to': self.relations_util._closest,
         }
 
@@ -193,8 +189,7 @@ class Ai2Thor(Ai2Thor_Base):
 
         self.max_relations = args.max_relations
 
-        # self.OT_dist_thresh = 0.05 #args.OT_dist_thresh #0.05
-        self.dist_thresh = args.dist_thresh #0.5
+        self.dist_thresh = args.dist_thresh 
 
         self.iter_interval = [] #args.rearrange_interval
         if args.rearrange_interval_min is not None or args.rearrange_interval_max is not None:
@@ -257,7 +252,7 @@ class Ai2Thor(Ai2Thor_Base):
 
             print("SUBMISSION NAME:", self.submission_file)
 
-            walkthrough_task = self.two_phase_rgb_task_sampler.next_task()
+            walkthrough_task: WalkthroughTask = self.two_phase_rgb_task_sampler.next_task()
 
             if len(self.iter_interval)>0:
                 if i_task<self.iter_interval[0] or i_task>self.iter_interval[1]:
@@ -280,7 +275,6 @@ class Ai2Thor(Ai2Thor_Base):
                 f" '{self.two_phase_rgb_task_sampler.current_task_spec.stage}' stage and has"
                 f" unique id '{self.two_phase_rgb_task_sampler.current_task_spec.unique_id}'"
             )
-
             # assert isinstance(walkthrough_task, WalkthroughTask)
 
             if self.estimate_depth: # or self.noisy_depth:
@@ -304,7 +298,7 @@ class Ai2Thor(Ai2Thor_Base):
             navigation = Navigation(keep_head_down=keep_head_down, keep_head_straight=keep_head_straight, search_pitch_explore=search_pitch_explore)
 
             rgb, depth = self.get_obs(walkthrough_task, head_tilt=0)
-            self.success_checker = CheckSuccessfulAction(rgb_init=rgb) #, H=self.H, W=self.W, controller=self.controller_walkthrough)
+            self.success_checker = CheckSuccessfulAction(rgb_init=rgb)
             self.update_navigation_obs(rgb,depth, True, navigation)
 
             if self.create_movie and i_task%self.log_every==0:
@@ -350,7 +344,7 @@ class Ai2Thor(Ai2Thor_Base):
                 vis.navigation = navigation
             
             rgb, depth = self.get_obs(unshuffle_task, head_tilt=0)
-            self.success_checker = CheckSuccessfulAction(rgb_init=rgb) #, H=self.H, W=self.W, controller=self.controller_unshuffle)
+            self.success_checker = CheckSuccessfulAction(rgb_init=rgb)
             self.update_navigation_obs(rgb,depth, True, navigation)
 
             print("STARTING:", self.controller_unshuffle.last_event.metadata['cameraPosition'], self.controller_unshuffle.last_event.metadata['agent']['cameraHorizon'], self.controller_unshuffle.last_event.metadata['agent']['rotation'])

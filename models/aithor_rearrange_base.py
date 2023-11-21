@@ -28,6 +28,41 @@ import json
 import gzip
 import os
 from utils.noise_models.sim_kinect_noise import add_gaussian_shifts, filterDisp
+sys.path.append('rearrangement')
+from baseline_configs.rearrange_base import RearrangeBaseExperimentConfig
+from rearrange.constants import (
+    OBJECT_TYPES_WITH_PROPERTIES,
+    THOR_COMMIT_ID,
+)
+
+from baseline_configs.two_phase.two_phase_tidee_base import (
+    TwoPhaseTIDEEExperimentConfig,
+)
+from rearrange.sensors import (
+    RGBRearrangeSensor,
+    InWalkthroughPhaseSensor,
+    DepthRearrangeSensor,
+    ClosestUnshuffledRGBRearrangeSensor,
+)
+from allenact.base_abstractions.sensor import SensorSuite, Sensor
+import skimage
+
+try:
+    from allenact.embodiedai.sensors.vision_sensors import DepthSensor
+except ImportError:
+    raise ImportError("Please update to allenact>=0.4.0.")
+
+from rearrange.tasks import RearrangeTaskSampler, WalkthroughTask, UnshuffleTask
+from utils.wctb import Utils, Relations_CenterOnly
+import re
+import time
+import json
+import gzip
+import os
+from utils.noise_models.sim_kinect_noise import add_gaussian_shifts, filterDisp
+torch.manual_seed(args.seed)
+np.random.seed(args.seed)
+random.seed(args.seed)
 
 def format_a(a):
     a_split = a.split('_')[1:]

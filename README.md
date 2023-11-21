@@ -105,6 +105,13 @@ All pretrained model checkpoints can be downloaded [here](https://drive.google.c
 
 For use with the tidy task or room rearrangement, place all checkpoints directly in the `checkpoints` folder. 
 
+The rearrangement only requires the detector checkpoint. You can run the following:
+```bash
+pip install gdown
+cd checkpoints
+gdown 15h2M5fJuVteR1puaP_bEmEgLkHdVuHgt
+```
+
 ## Running TIDEE on Room Rearrangement 
 The evaluation code for the rearrangement challenge task is taken from [Visual Room Rearrangement](https://github.com/allenai/ai2thor-rearrangement) and is included in the current repo in `rearrangement` modified to include estimated depth, noisy pose, noisy depth, and TIDEE config.
 

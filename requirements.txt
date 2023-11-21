@@ -8,7 +8,7 @@ compress-pickle==2.1.0
 packaging
 tqdm
 pillow
-numpy
+numpy==1.23.1
 pandas
 opencv-python
 Pillow
